@@ -18,6 +18,8 @@ export default function PanelInterno() {
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
   const [msgPreview, setMsgPreview] = useState(null)
+  const [menuAbierto, setMenuAbierto] = useState(false)
+  const esMovil = window.innerWidth < 768
 
   const hoy = formatDate(new Date())
   const manana = addDays(hoy, 1)
@@ -132,34 +134,161 @@ export default function PanelInterno() {
 
   return (
     <div style={{ fontFamily:"'Segoe UI', sans-serif", background:'#fdf6f8', minHeight:'100vh', color:'#2d1f27' }}>
-      <header style={{ background:'#fff', borderBottom:'2px solid #f0d9e8', padding:'0 32px', display:'flex', alignItems:'center', justifyContent:'space-between', height:72, flexWrap:'wrap' }}>
-              <div style={{ display:'flex', alignItems:'center' }}>
-          <img
-            src={logo}
-            alt="Tamy Ayelen"
-            style={{
-              width:150,
-              height:'auto'
-            }}
-          />
-        </div>
-        <nav style={{ display:'flex', gap:6, alignItems:'center' }}>
-          {[['calendario','📅 Calendario'],['recordatorios','📲 Recordatorios'],['listado','📋 Turnos'],['nuevo','➕ Nuevo turno']].map(([v,l]) => (
-            <button key={v} onClick={() => { setVista(v); setTurnoSeleccionado(null) }}
-              style={{ padding:'7px 14px', borderRadius:20, border:'none', cursor:'pointer', fontWeight:600, fontSize:13,
-                background: vista===v ? '#b05080' : 'transparent', color: vista===v ? '#fff' : '#b05080', position:'relative' }}>
+      <header
+  style={{
+    background: "#fff",
+    borderBottom: "2px solid #f0d9e8",
+    padding: esMovil ? "10px 16px" : "0 32px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    minHeight: esMovil ? 70 : 72,
+    position: "relative"
+  }}
+>
+
+  <img
+    src={logo}
+    alt="Tamy Ayelen"
+    style={{
+      width: esMovil ? 85 : 150,
+      height: "auto"
+    }}
+  />
+
+  {esMovil ? (
+
+    <>
+      <button
+        onClick={() => setMenuAbierto(!menuAbierto)}
+        style={{
+          fontSize: 28,
+          border: "none",
+          background: "transparent",
+          cursor: "pointer",
+          color: "#b05080"
+        }}
+      >
+        ☰
+      </button>
+
+      {menuAbierto && (
+        <div
+          style={{
+            position: "absolute",
+            top: 70,
+            right: 10,
+            background: "#fff",
+            border: "1px solid #f0d9e8",
+            borderRadius: 12,
+            boxShadow: "0 8px 25px rgba(0,0,0,.12)",
+            overflow: "hidden",
+            zIndex: 1000,
+            minWidth: 220
+          }}
+        >
+
+          {[
+            ["calendario", "📅 Calendario"],
+            ["recordatorios", "📲 Recordatorios"],
+            ["listado", "📋 Turnos"],
+            ["nuevo", "➕ Nuevo turno"],
+          ].map(([v, l]) => (
+            <button
+              key={v}
+              onClick={() => {
+                setVista(v)
+                setTurnoSeleccionado(null)
+                setMenuAbierto(false)
+              }}
+              style={{
+                display: "block",
+                width: "100%",
+                textAlign: "left",
+                padding: "14px 18px",
+                border: "none",
+                background: vista === v ? "#fdf2f8" : "#fff",
+                cursor: "pointer",
+                color: "#b05080",
+                fontWeight: 600
+              }}
+            >
               {l}
-              {v==='recordatorios' && turnosManana.filter(t=>!t.recordatorio_enviado).length > 0 && (
-                <span style={{ position:'absolute', top:-4, right:-4, background:'#25d366', color:'#fff', borderRadius:'50%', width:16, height:16, fontSize:10, fontWeight:800, display:'flex', alignItems:'center', justifyContent:'center' }}>
-                  {turnosManana.filter(t=>!t.recordatorio_enviado).length}
-                </span>
-              )}
             </button>
           ))}
-          <button onClick={salir} style={{ padding:'7px 14px', borderRadius:20, border:'none', cursor:'pointer', fontWeight:600, fontSize:13, color:'#999', background:'transparent' }}>Salir</button>
-        </nav>
-      </header>
 
+          <hr style={{ margin: 0 }} />
+
+          <button
+            onClick={salir}
+            style={{
+              display: "block",
+              width: "100%",
+              textAlign: "left",
+              padding: "14px 18px",
+              border: "none",
+              background: "#fff",
+              cursor: "pointer",
+              color: "#777"
+            }}
+          >
+            Salir
+          </button>
+
+        </div>
+      )}
+    </>
+
+  ) : (
+
+    <nav style={{ display: "flex", gap: 6, alignItems: "center" }}>
+
+      {[
+        ["calendario", "📅 Calendario"],
+        ["recordatorios", "📲 Recordatorios"],
+        ["listado", "📋 Turnos"],
+        ["nuevo", "➕ Nuevo turno"],
+      ].map(([v, l]) => (
+        <button
+          key={v}
+          onClick={() => {
+            setVista(v)
+            setTurnoSeleccionado(null)
+          }}
+          style={{
+            padding: "7px 14px",
+            borderRadius: 20,
+            border: "none",
+            cursor: "pointer",
+            fontWeight: 600,
+            fontSize: 13,
+            background: vista === v ? "#b05080" : "transparent",
+            color: vista === v ? "#fff" : "#b05080"
+          }}
+        >
+          {l}
+        </button>
+      ))}
+
+      <button
+        onClick={salir}
+        style={{
+          padding: "7px 14px",
+          borderRadius: 20,
+          border: "none",
+          cursor: "pointer",
+          background: "transparent",
+          color: "#888"
+        }}
+      >
+        Salir
+      </button>
+
+    </nav>
+
+  )}
+
+</header>
       <main style={{ maxWidth:900, margin:'0 auto', padding:'24px 16px' }}>
 
         {vista === 'recordatorios' && (
