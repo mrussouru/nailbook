@@ -6,6 +6,7 @@ export default function NuevoTurno(props) {
     form,
     setForm,
     servicios,
+    profesionales,
     servicioInfo,
     turnoQueChoca,
     agregarTurno,
@@ -27,6 +28,30 @@ export default function NuevoTurno(props) {
             </Campo>
             <Campo label="Fecha *">
               <input type="date" value={form.fecha} onChange={e => setForm({...form, fecha:e.target.value})} style={inputStyle} />
+            </Campo>
+            <Campo label="Profesional *">
+            <select
+                value={form.profesional_id || ""}
+                onChange={e =>
+                setForm({
+                    ...form,
+                    profesional_id: e.target.value
+                })
+                }
+                style={inputStyle}
+            >
+                <option value="">
+                ✨ Asignación automática (recomendado)
+                </option>
+
+                {profesionales
+                .filter(p => p.activa)
+                .map(p => (
+                    <option key={p.id} value={p.id}>
+                    {p.nombre}
+                    </option>
+                ))}
+            </select>
             </Campo>
             <Campo label="Servicio *">
               <select value={form.servicio} onChange={e => setForm({...form, servicio:e.target.value})} style={inputStyle}>

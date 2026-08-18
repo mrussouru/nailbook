@@ -8,11 +8,13 @@ import DetalleTurno from "./components/DetalleTurno"
 import Recordatorios from "./components/Recordatorios"
 import Header from './components/Header'
 import Profesionales from './components/Profesionales'
+import { ejecutarMDI } from "./motores/MDI";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
   generarMensajeWA, abrirWhatsApp, estadoColor, estadoLabel,
 } from './helpers'
+
 
 export default function PanelInterno() {
   const [vista, setVista] = useState('calendario')
@@ -22,24 +24,52 @@ export default function PanelInterno() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(formatDate(new Date()))
   const [mesActual, setMesActual] = useState(new Date())
   const [turnoSeleccionado, setTurnoSeleccionado] = useState(null)
-  const [form, setForm] = useState({ cliente:'', telefono:'', servicio:'', fecha: formatDate(new Date()), hora:'10:00', nota:'' })
+  const [form, setForm] = useState({ cliente:'', telefono:'', servicio:'',profesional_id:'', fecha: formatDate(new Date()), hora:'10:00', nota:'' })
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
   const [msgPreview, setMsgPreview] = useState(null)
   const [menuAbierto, setMenuAbierto] = useState(false)
+  const [profesionales, setProfesionales] = useState([]);
+  const [relacionesServicios, setRelacionesServicios] = useState([]);
   const esMovil = window.innerWidth < 768
-
+  const [profesionalSeleccionada, setProfesionalSeleccionada] = useState("todas");
   const hoy = formatDate(new Date())
   const manana = addDays(hoy, 1)
 
   const cargarTodo = useCallback(async () => {
     setCargando(true)
-    const [{ data: s }, { data: t }] = await Promise.all([
-      supabase.from('servicios').select('*').eq('activo', true).order('orden'),
-      supabase.from('turnos').select('*').order('fecha').order('hora'),
+    const [
+      { data: s },
+      { data: t },
+      { data: p },
+      { data: ps }
+    ] = await Promise.all([
+      supabase
+        .from("servicios")
+        .select("*")
+        .eq("activo", true)
+        .order("orden"),
+    
+      supabase
+        .from("turnos")
+        .select("*")
+        .order("fecha")
+        .order("hora"),
+    
+      supabase
+        .from("profesionales")
+        .select("*")
+        .eq("activa", true)
+        .order("nombre"),
+    
+      supabase
+        .from("profesionales_servicios")
+        .select("*")
     ])
     setServicios(s || [])
     setTurnos((t || []).map(x => ({ ...x, hora: x.hora.slice(0,5) })))
+    setProfesionales(p || [])
+    setRelacionesServicios(ps || [])
     if (s && s[0] && !form.servicio) setForm(f => ({ ...f, servicio: s[0].id }))
     setCargando(false)
   }, []) // eslint-disable-line
@@ -82,18 +112,115 @@ export default function PanelInterno() {
   }
 
   async function agregarTurno() {
-    if (!form.cliente || !form.fecha || !form.hora) return
-    if (turnoQueChoca(form.fecha, form.hora, form.servicio)) return
-    const { error } = await supabase.from('turnos').insert({
-      cliente: form.cliente, telefono: form.telefono, servicio: form.servicio,
-      fecha: form.fecha, hora: form.hora, estado: 'confirmado', origen: 'interno', nota: form.nota,
-    })
-    if (error) { alert('No se pudo guardar: ' + error.message); return }
-    await cargarTodo()
-    setVista('calendario')
-    setFechaSeleccionada(form.fecha)
-    setForm({ cliente:'', telefono:'', servicio: servicios[0]?.id || '', fecha: hoy, hora:'10:00', nota:'' })
+
+    if (!form.cliente || !form.fecha || !form.hora) return;
+  
+    let profesionalId = form.profesional_id;
+  
+    // ==========================================
+    // CONSULTAR AL MDI
+    // ==========================================
+  
+    const resultadoMDI = ejecutarMDI({
+
+      servicioId: form.servicio,
+  
+      fecha: form.fecha,
+  
+      hora: form.hora,
+  
+      profesionales,
+  
+      relaciones: relacionesServicios,
+  
+      turnos,
+  
+      servicios
+  
+  });
+  
+  console.table(
+  
+      resultadoMDI.historial.map(item => ({
+  
+          Profesional: item.profesional.nombre,
+  
+          Minutos: item.minutos,
+  
+          "Último turno":
+  
+              item.ultimoTurno
+  
+                  ? `${item.ultimoTurno.fecha} ${item.ultimoTurno.hora}`
+  
+                  : "Nunca"
+  
+      }))
+  
+  );
+  
+  
+  if (!profesionalId) {
+
+    console.table(resultadoMDI.carga);
+
+    console.log("🚀 MDI NUEVO", resultadoMDI);
+
+    console.log("Motivo:", resultadoMDI.motivo);
+
+    if (!resultadoMDI.disponible) {
+
+        alert(resultadoMDI.motivo);
+
+        return;
+
+    }
+
+    profesionalId = resultadoMDI.profesional.id;
+
+}
+  
+
+    // La disponibilidad ya fue validada por el MDI
+// if (turnoQueChoca(form.fecha, form.hora, form.servicio)) return;
+  
+    const { error } = await supabase
+      .from("turnos")
+      .insert({
+        cliente: form.cliente,
+        telefono: form.telefono,
+        servicio: form.servicio,
+        profesional_id: profesionalId,
+        fecha: form.fecha,
+        hora: form.hora,
+        estado: "confirmado",
+        origen: "interno",
+        nota: form.nota,
+      });
+  
+    if (error) {
+      alert("No se pudo guardar: " + error.message);
+      return;
+    }
+  
+    await cargarTodo();
+  
+    setVista("calendario");
+    setFechaSeleccionada(form.fecha);
+  
+    setForm({
+      cliente: "",
+      telefono: "",
+      servicio: servicios[0]?.id || "",
+      profesional_id: "",
+      fecha: hoy,
+      hora: "10:00",
+      nota: "",
+    });
+  
   }
+
+  
 
   async function cambiarEstado(id, estado) {
     await supabase.from('turnos').update({ estado }).eq('id', id)
@@ -129,7 +256,17 @@ export default function PanelInterno() {
     window.location.reload()
   }
 
-  const turnosDelDia = turnos.filter(t => t.fecha === fechaSeleccionada)
+  const turnosDelDia = turnos.filter(t => {
+
+    const mismaFecha = t.fecha === fechaSeleccionada
+  
+    const mismaProfesional =
+      profesionalSeleccionada === "todas" ||
+      t.profesional_id === profesionalSeleccionada
+  
+    return mismaFecha && mismaProfesional
+  
+  })
   const turnosFiltrados = turnos.filter(t => {
     const estadoOk = filtroEstado === 'todos' || t.estado === filtroEstado
     const busOk = t.cliente.toLowerCase().includes(busqueda.toLowerCase()) || t.telefono.includes(busqueda)
@@ -208,6 +345,10 @@ getDiasDelMes={getDiasDelMes}
 
 servicioInfo={servicioInfo}
 
+profesionales={profesionales}
+profesionalSeleccionada={profesionalSeleccionada}
+setProfesionalSeleccionada={setProfesionalSeleccionada}
+
 setVista={setVista}
 
 form={form}
@@ -263,6 +404,8 @@ setTurnoSeleccionado={setTurnoSeleccionado}
 
           servicios={servicios}
 
+          profesionales={profesionales}
+
           servicioInfo={servicioInfo}
 
           turnoQueChoca={turnoQueChoca}
@@ -278,6 +421,10 @@ setTurnoSeleccionado={setTurnoSeleccionado}
           />
 
           )}
+
+          {vista === "profesionales" && (
+            <Profesionales />
+          )} 
 
       </main>
     </div>

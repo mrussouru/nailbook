@@ -32,11 +32,18 @@ import {
       turnosDelDia,
       getDiasDelMes,
       servicioInfo,
+      profesionales,
       setVista,
       form,
       setForm,
-      setTurnoSeleccionado
+      setTurnoSeleccionado,
+      profesionalSeleccionada,
+     setProfesionalSeleccionada,
     }=props
+
+    function profesionalInfo(id) {
+        return profesionales.find(p => p.id === id)
+      }
   
     return(
   
@@ -47,6 +54,38 @@ import {
           <button onClick={() => setMesActual(new Date(mesActual.getFullYear(), mesActual.getMonth()+1, 1))} style={btnNav}>›</button>
           <button onClick={() => { setMesActual(new Date()); setFechaSeleccionada(hoy) }} style={{ ...btnNav, fontSize:12, padding:'4px 12px', borderRadius:12, marginLeft:8, width:'auto' }}>Hoy</button>
         </div>
+        <div style={{ marginBottom:16 }}>
+
+  <select
+    value={profesionalSeleccionada}
+    onChange={e => setProfesionalSeleccionada(e.target.value)}
+    style={{
+      padding:"10px 14px",
+      borderRadius:10,
+      border:"2px solid #f0d9e8",
+      background:"#fff",
+      minWidth:220
+    }}
+  >
+
+    <option value="todas">
+      🌸 Todas las profesionales
+    </option>
+
+    {profesionales.map(p => (
+
+      <option
+        key={p.id}
+        value={p.id}
+      >
+        💅 {p.nombre}
+      </option>
+
+    ))}
+
+  </select>
+
+</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)', gap:4, marginBottom:4 }}>
           {DIAS_SEMANA.map(d => <div key={d} style={{ textAlign:'center', fontSize:12, fontWeight:700, color:'#b05080' }}>{d}</div>)}
         </div>
@@ -90,7 +129,20 @@ import {
                     <div style={{ fontWeight:700, fontSize:15 }}>
                       {t.cliente} {t.origen === 'publico' && <span style={{ fontSize:11, background:'#e3f2fd', color:'#1565c0', padding:'2px 8px', borderRadius:10, marginLeft:6 }}>Reservado online</span>}
                     </div>
-                    <div style={{ fontSize:13, color:'#888' }}>{servicioInfo(t.servicio)?.nombre} · ${Number(servicioInfo(t.servicio)?.precio).toLocaleString('es-AR')}</div>
+                    <div style={{ fontSize:13, color:'#888' }}>
+
+                    {profesionalInfo(t.profesional_id) && (
+                        <>
+                        💅 {profesionalInfo(t.profesional_id).nombre}
+                        <br />
+                        </>
+                    )}
+
+                    {servicioInfo(t.servicio)?.nombre}
+                    {" · "}
+                    ${Number(servicioInfo(t.servicio)?.precio).toLocaleString('es-AR')}
+
+                    </div>
                   </div>
                   <span style={{ background:estadoColor[t.estado], padding:'4px 12px', borderRadius:20, fontSize:12, fontWeight:700, color:'#555' }}>{estadoLabel[t.estado]}</span>
                 </div>
