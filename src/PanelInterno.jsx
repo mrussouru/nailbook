@@ -124,6 +124,8 @@ export default function PanelInterno() {
     const resultadoMDI = ejecutarMDI({
 
       servicioId: form.servicio,
+
+      profesionalId: form.profesional_id,
   
       fecha: form.fecha,
   
@@ -417,6 +419,12 @@ setTurnoSeleccionado={setTurnoSeleccionado}
           Campo={Campo}
 
           inputStyle={inputStyle}
+
+          horarios={HORARIOS}
+
+          turnos={turnos}
+
+          relacionesServicios={relacionesServicios}
 
           />
 

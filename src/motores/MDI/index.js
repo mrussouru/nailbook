@@ -9,11 +9,13 @@ export function ejecutarMDI(datos){
     const candidatas = buscarCandidatas(
 
         datos.servicioId,
-
+    
         datos.profesionales,
-
-        datos.relaciones
-
+    
+        datos.relaciones,
+    
+        datos.profesionalId
+    
     );
 
     const disponibles = buscarDisponibles(
