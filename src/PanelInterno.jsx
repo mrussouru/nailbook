@@ -10,6 +10,7 @@ import Header from './components/Header'
 import Profesionales from './components/Profesionales'
 import { ejecutarMDI } from "./motores/MDI";
 import Liquidaciones from "./components/Liquidaciones";
+import Disponibilidad from "./components/Disponibilidad";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -451,6 +452,15 @@ setTurnoSeleccionado={setTurnoSeleccionado}
 
           )}
 
+          {vista === "disponibilidad" && (
+
+          <Disponibilidad
+
+            profesionales={profesionales}
+
+          />
+
+          )}
       </main>
     </div>
   )
