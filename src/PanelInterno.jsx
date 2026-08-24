@@ -9,6 +9,7 @@ import Recordatorios from "./components/Recordatorios"
 import Header from './components/Header'
 import Profesionales from './components/Profesionales'
 import { ejecutarMDI } from "./motores/MDI";
+import Liquidaciones from "./components/Liquidaciones";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -195,7 +196,7 @@ export default function PanelInterno() {
         profesional_id: profesionalId,
         fecha: form.fecha,
         hora: form.hora,
-        estado: "confirmado",
+        estado: "pendiente",
         origen: "interno",
         nota: form.nota,
       });
@@ -433,6 +434,22 @@ setTurnoSeleccionado={setTurnoSeleccionado}
           {vista === "profesionales" && (
             <Profesionales />
           )} 
+
+          {vista === "liquidaciones" && (
+
+          <Liquidaciones
+
+            turnos={turnos}
+
+            servicios={servicios}
+
+            profesionales={profesionales}
+
+            fecha={fechaSeleccionada}
+
+          />
+
+          )}
 
       </main>
     </div>

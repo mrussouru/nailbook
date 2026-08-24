@@ -31,6 +31,7 @@ export function obtenerDisponibilidadHoraria({
 
         let disponible = false;
         let motivo = "No hay profesionales disponibles";
+        let profesionalAsignada = null;
 
         for (const profesional of candidatas) {
 
@@ -54,9 +55,11 @@ export function obtenerDisponibilidadHoraria({
 
                 disponible = true;
                 motivo = "";
-
+            
+                profesionalAsignada = profesional;
+            
                 break;
-
+            
             }
 
         }
@@ -64,11 +67,13 @@ export function obtenerDisponibilidadHoraria({
         return {
 
             hora,
-
+        
             disponible,
-
-            motivo
-
+        
+            motivo,
+        
+            profesional: profesionalAsignada
+        
         };
 
     });

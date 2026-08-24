@@ -15,6 +15,7 @@ export default function Header({
       ["listado", "📋 Turnos"],
       ["nuevo", "➕ Nuevo turno"],
       ["profesionales", "👩‍🎨 Profesionales"],
+      ["liquidaciones", "💰 Liquidaciones"]
     ]
   
     return (

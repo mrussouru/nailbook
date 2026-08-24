@@ -2,9 +2,13 @@ import logo from './assets/logo.png'
 import { useState, useEffect, useCallback } from 'react'
 import { supabase } from './supabaseClient'
 import { HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, seSuperponeConOcupados } from './helpers'
+import { obtenerDisponibilidadHoraria } from "./motores/MDI/disponibilidadHoraria";
+import { useMemo } from "react";
 
 export default function ReservaPublica() {
   const [servicios, setServicios] = useState([])
+  const [profesionales, setProfesionales] = useState([]);
+  const [profesionalId, setProfesionalId] = useState("");
   const [mesActual, setMesActual] = useState(new Date())
   const [fecha, setFecha] = useState(formatDate(new Date()))
   const [servicioId, setServicioId] = useState('')
@@ -16,6 +20,9 @@ export default function ReservaPublica() {
   const [cargando, setCargando] = useState(false)
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState('')
+  const [relacionesServicios, setRelacionesServicios] = useState([]);
+  const [turnos, setTurnos] = useState([]);
+  
 
   const hoy = formatDate(new Date())
 
@@ -25,6 +32,31 @@ export default function ReservaPublica() {
         setServicios(data || [])
         if (data && data[0]) setServicioId(data[0].id)
       })
+  
+    // NUEVO ↓↓↓
+    supabase
+      .from('profesionales')
+      .select('*')
+      .eq('activa', true)
+      .order('nombre')
+      .then(({ data }) => {
+        setProfesionales(data || [])
+      })
+
+          supabase
+      .from("profesionales_servicios")
+      .select("*")
+      .then(({ data }) => {
+        setRelacionesServicios(data || []);
+      });
+
+    supabase
+      .from("turnos")
+      .select("*")
+      .then(({ data }) => {
+        setTurnos(data || []);
+      });
+  
   }, [])
 
   const cargarOcupados = useCallback(async (f) => {
@@ -35,6 +67,47 @@ export default function ReservaPublica() {
   useEffect(() => { cargarOcupados(fecha) }, [fecha, cargarOcupados])
 
   const servicioInfo = servicios.find(s => s.id === servicioId)
+
+  const disponibilidadHoraria = useMemo(() => {
+
+    if (
+      !fecha ||
+      !servicioId ||
+      servicios.length === 0 ||
+      profesionales.length === 0
+    ) {
+      return [];
+    }
+  
+    return obtenerDisponibilidadHoraria({
+  
+      fecha,
+  
+      servicioId,
+  
+      profesionalId,
+  
+      horarios: HORARIOS,
+  
+      profesionales,
+  
+      relaciones: relacionesServicios,
+  
+      turnos,
+  
+      servicios
+  
+    });
+  
+  }, [
+    fecha,
+    servicioId,
+    profesionalId,
+    profesionales,
+    relacionesServicios,
+    turnos,
+    servicios
+  ]);
 
   function getDiasDelMes(mes) {
     const año = mes.getFullYear(), m = mes.getMonth()
@@ -56,21 +129,45 @@ export default function ReservaPublica() {
       setError('Completá todos los campos obligatorios.')
       return
     }
-    if (horaOcupada(hora)) {
-      setError('Ese horario ya no está disponible, elegí otro.')
-      return
+    const horarioSeleccionado = disponibilidadHoraria.find(
+      h => h.hora === hora
+    );
+
+ 
+    if (!horarioSeleccionado?.disponible) {
+    
+      setError("Ese horario ya no está disponible.");
+    
+      return;
+    
     }
+    const profesionalAsignada = horarioSeleccionado.profesional;
+    
+    
     setCargando(true)
-    const { error: err } = await supabase.from('turnos').insert({
-      cliente: cliente.trim(),
-      telefono: telefono.trim(),
-      servicio: servicioId,
-      fecha,
-      hora,
-      estado: 'pendiente',
-      origen: 'publico',
-      nota: nota.trim(),
-    })
+    const { error: err } = await supabase
+  .from("turnos")
+  .insert({
+
+    cliente: cliente.trim(),
+
+    telefono: telefono.trim(),
+
+    servicio: servicioId,
+
+    profesional_id: profesionalAsignada?.id,
+
+    fecha,
+
+    hora,
+
+    estado: "pendiente",
+
+    origen: "publico",
+
+    nota: nota.trim(),
+
+  });
     setCargando(false)
     if (err) {
       setError('No se pudo reservar. Probá de nuevo en unos segundos.')
@@ -119,6 +216,26 @@ export default function ReservaPublica() {
           ))}
         </select>
       </Campo>
+      <Campo label="Profesional">
+          <select
+            value={profesionalId}
+            onChange={e => {
+              setProfesionalId(e.target.value);
+              setHora("");
+            }}
+            style={inputStyle}
+          >
+            <option value="">
+              ✨ Asignación automática (recomendado)
+            </option>
+
+            {profesionales.map(p => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+        </Campo>
 
       {/* Mini calendario */}
       <Campo label="Día *">
@@ -151,21 +268,75 @@ export default function ReservaPublica() {
       {/* Horarios */}
       <Campo label="Horario *">
         <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
-          {HORARIOS.map(h => {
-            const ocupado = horaOcupada(h)
-            const sel = hora === h
-            return (
-              <button key={h} disabled={ocupado} onClick={() => setHora(h)}
-                style={{ padding:'7px 11px', borderRadius:10,
-                  border:'2px solid ' + (ocupado ? '#eee' : sel ? '#b05080' : '#f0d9e8'),
-                  background: ocupado ? '#f5f5f5' : sel ? '#b05080' : '#fff',
-                  color: ocupado ? '#ccc' : sel ? '#fff' : '#2d1f27',
-                  fontWeight:600, fontSize:13, cursor: ocupado ? 'not-allowed' : 'pointer',
-                  textDecoration: ocupado ? 'line-through' : 'none' }}>
-                {h}
-              </button>
-            )
-          })}
+        {disponibilidadHoraria.map(item => {
+
+const sel = hora === item.hora;
+
+return (
+
+  <button
+    key={item.hora}
+    disabled={!item.disponible}
+    onClick={() => {
+
+      if (!item.disponible) return;
+
+      setHora(item.hora);
+
+    }}
+    title={item.disponible ? "" : item.motivo}
+    style={{
+
+      padding:'7px 11px',
+
+      borderRadius:10,
+
+      border:
+        '2px solid ' +
+        (!item.disponible
+          ? '#eee'
+          : sel
+          ? '#b05080'
+          : '#f0d9e8'),
+
+      background:
+        !item.disponible
+          ? '#f5f5f5'
+          : sel
+          ? '#b05080'
+          : '#fff',
+
+      color:
+        !item.disponible
+          ? '#ccc'
+          : sel
+          ? '#fff'
+          : '#2d1f27',
+
+      fontWeight:600,
+
+      fontSize:13,
+
+      cursor:
+        !item.disponible
+          ? 'not-allowed'
+          : 'pointer',
+
+      textDecoration:
+        !item.disponible
+          ? 'line-through'
+          : 'none'
+
+    }}
+  >
+
+    {item.hora}
+
+  </button>
+
+);
+
+})}
         </div>
       </Campo>
 
