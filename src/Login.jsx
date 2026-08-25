@@ -1,22 +1,49 @@
 import logo from './assets/logo.png'
 import { useEffect, useState } from 'react'
 import { supabase } from './supabaseClient'
+import { cargarUsuario } from "./motores/auth";
+import { useUsuario } from "./context/UsuarioContext";
 
 export default function Login({ children }) {
   const [session, setSession] = useState(null)
+  const { usuario, setUsuario } = useUsuario();
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session)
-    })
+    supabase.auth.getSession().then(async ({ data }) => {
+
+      setSession(data.session);
+    
+      if (data.session) {
+    
+        const usuarioBD = await cargarUsuario();
+    
+        setUsuario(usuarioBD);
+        console.log(usuarioBD);
+    
+      }
+    
+    });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+
+if (session) {
+
+  const usuarioBD = await cargarUsuario();
+
+  setUsuario(usuarioBD);
+  console.log(usuarioBD);
+
+} else {
+
+  setUsuario(null);
+
+}
     })
 
     return () => subscription.unsubscribe()

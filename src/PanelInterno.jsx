@@ -11,6 +11,7 @@ import Profesionales from './components/Profesionales'
 import { ejecutarMDI } from "./motores/MDI";
 import Liquidaciones from "./components/Liquidaciones";
 import Disponibilidad from "./components/Disponibilidad";
+import { useUsuario } from "./context/UsuarioContext";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -33,10 +34,30 @@ export default function PanelInterno() {
   const [menuAbierto, setMenuAbierto] = useState(false)
   const [profesionales, setProfesionales] = useState([]);
   const [relacionesServicios, setRelacionesServicios] = useState([]);
+  const [licencias, setLicencias] = useState([]);
   const esMovil = window.innerWidth < 768
   const [profesionalSeleccionada, setProfesionalSeleccionada] = useState("todas");
   const hoy = formatDate(new Date())
   const manana = addDays(hoy, 1)
+  const { usuario } = useUsuario();
+
+  const turnosVisibles = useMemo(() => {
+
+    if (!usuario) return [];
+  
+    if (usuario.rol === "dueno") {
+      return turnos;
+    }
+  
+    if (usuario.rol === "profesional") {
+      return turnos.filter(
+        t => t.profesional_id === usuario.profesional_id
+      );
+    }
+  
+    return [];
+  
+  }, [turnos, usuario]);
 
   const cargarTodo = useCallback(async () => {
     setCargando(true)
@@ -44,7 +65,8 @@ export default function PanelInterno() {
       { data: s },
       { data: t },
       { data: p },
-      { data: ps }
+      { data: ps },
+      { data: l }
     ] = await Promise.all([
       supabase
         .from("servicios")
@@ -66,12 +88,17 @@ export default function PanelInterno() {
     
       supabase
         .from("profesionales_servicios")
+        .select("*"),
+
+      supabase
+        .from("licencias_profesionales")
         .select("*")
     ])
     setServicios(s || [])
     setTurnos((t || []).map(x => ({ ...x, hora: x.hora.slice(0,5) })))
     setProfesionales(p || [])
     setRelacionesServicios(ps || [])
+    setLicencias(l || []);
     if (s && s[0] && !form.servicio) setForm(f => ({ ...f, servicio: s[0].id }))
     setCargando(false)
   }, []) // eslint-disable-line
@@ -87,7 +114,12 @@ export default function PanelInterno() {
   }, [cargarTodo])
 
   const servicioInfo = (id) => servicios.find(s => s.id === id)
-  const turnosManana = useMemo(() => turnos.filter(t => t.fecha === manana && t.estado !== 'cancelado'), [turnos, manana])
+  const turnosManana = useMemo(
+    () => turnosVisibles.filter(
+      t => t.fecha === manana && t.estado !== "cancelado"
+    ),
+    [turnosVisibles, manana]
+  );
 
   function getDiasDelMes(mes) {
     const año = mes.getFullYear(), m = mes.getMonth()
@@ -123,6 +155,8 @@ export default function PanelInterno() {
     // CONSULTAR AL MDI
     // ==========================================
   
+    console.log("LICENCIAS PANEL", licencias);
+
     const resultadoMDI = ejecutarMDI({
 
       servicioId: form.servicio,
@@ -139,7 +173,9 @@ export default function PanelInterno() {
   
       turnos,
   
-      servicios
+      servicios,
+
+      licencias
   
   });
   
@@ -163,8 +199,17 @@ export default function PanelInterno() {
   
   );
   
+  if (!resultadoMDI.disponible) {
+
+    alert(resultadoMDI.motivoDisponibilidad || resultadoMDI.motivo);
+
+    return;
+
+}
   
   if (!profesionalId) {
+
+    profesionalId = resultadoMDI.profesional.id;
 
     console.table(resultadoMDI.carga);
 
@@ -174,7 +219,7 @@ export default function PanelInterno() {
 
     if (!resultadoMDI.disponible) {
 
-        alert(resultadoMDI.motivo);
+      alert(resultadoMDI.motivoDisponibilidad || resultadoMDI.motivo);
 
         return;
 
@@ -260,7 +305,7 @@ export default function PanelInterno() {
     window.location.reload()
   }
 
-  const turnosDelDia = turnos.filter(t => {
+  const turnosDelDia = turnosVisibles.filter(t => {
 
     const mismaFecha = t.fecha === fechaSeleccionada
   
@@ -271,7 +316,7 @@ export default function PanelInterno() {
     return mismaFecha && mismaProfesional
   
   })
-  const turnosFiltrados = turnos.filter(t => {
+  const turnosFiltrados = turnosVisibles.filter(t => {
     const estadoOk = filtroEstado === 'todos' || t.estado === filtroEstado
     const busOk = t.cliente.toLowerCase().includes(busqueda.toLowerCase()) || t.telefono.includes(busqueda)
     return estadoOk && busOk
@@ -342,7 +387,7 @@ setFechaSeleccionada={setFechaSeleccionada}
 hoy={hoy}
 manana={manana}
 
-turnos={turnos}
+turnos={turnosVisibles}
 turnosDelDia={turnosDelDia}
 
 getDiasDelMes={getDiasDelMes}
@@ -424,7 +469,7 @@ setTurnoSeleccionado={setTurnoSeleccionado}
 
           horarios={HORARIOS}
 
-          turnos={turnos}
+          turnos={turnosVisibles}
 
           relacionesServicios={relacionesServicios}
 
@@ -440,7 +485,7 @@ setTurnoSeleccionado={setTurnoSeleccionado}
 
           <Liquidaciones
 
-            turnos={turnos}
+            turnos={turnosVisibles}
 
             servicios={servicios}
 

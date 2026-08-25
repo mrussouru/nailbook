@@ -16,7 +16,9 @@ export function obtenerHorariosDisponibles({
 
     turnos,
 
-    servicios
+    servicios,
+
+    licencias
 
 }) {
 
@@ -40,7 +42,9 @@ export function obtenerHorariosDisponibles({
 
             turnos,
 
-            servicios
+            servicios,
+
+            licencias
 
         });
 

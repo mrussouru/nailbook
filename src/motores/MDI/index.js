@@ -4,21 +4,25 @@ import { calcularCarga } from "./carga";
 import { calcularHistorial } from "./historial";
 import { decidirProfesional } from "./decision";
 
-export function ejecutarMDI(datos){
+export function ejecutarMDI(datos) {
 
     const candidatas = buscarCandidatas(
 
         datos.servicioId,
-    
+
         datos.profesionales,
-    
+
         datos.relaciones,
-    
+
         datos.profesionalId
-    
+
     );
 
-    const disponibles = buscarDisponibles(
+    // ======================================
+    // Buscar profesionales disponibles
+    // ======================================
+
+    const resultadoDisponibilidad = buscarDisponibles(
 
         candidatas,
 
@@ -26,9 +30,21 @@ export function ejecutarMDI(datos){
 
         datos.hora,
 
-        datos.turnos
+        datos.turnos,
+
+        datos.servicios,
+
+        datos.servicioId,
+
+        datos.licencias || []
 
     );
+
+    const disponibles = resultadoDisponibilidad.disponibles;
+
+    // ======================================
+    // Calcular carga
+    // ======================================
 
     const carga = calcularCarga(
 
@@ -42,33 +58,42 @@ export function ejecutarMDI(datos){
 
     );
 
+    // ======================================
+    // Calcular historial
+    // ======================================
+
     const historial = calcularHistorial(
 
         carga,
-    
+
         datos.turnos
-    
+
     );
+
+    // ======================================
+    // Decidir profesional
+    // ======================================
 
     const decision = decidirProfesional(
 
         historial
-    
-    );
 
+    );
 
     return {
 
         candidatas,
-    
+
         disponibles,
-    
+
         carga,
-    
+
         historial,
-    
+
+        motivoDisponibilidad: resultadoDisponibilidad.motivo,
+
         ...decision
-    
+
     };
 
 }

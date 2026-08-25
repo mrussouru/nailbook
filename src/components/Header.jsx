@@ -1,3 +1,6 @@
+import { useUsuario } from "../context/UsuarioContext";
+import { esDueno, esProfesional } from "../motores/auth";
+
 export default function Header({
     logo,
     esMovil,
@@ -9,15 +12,33 @@ export default function Header({
     salir
   }) {
   
-    const opciones = [
-      ["calendario", "📅 Calendario"],
-      ["recordatorios", "📲 Recordatorios"],
-      ["listado", "📋 Turnos"],
-      ["nuevo", "➕ Nuevo turno"],
-      ["profesionales", "👩‍🎨 Profesionales"],
-      ["liquidaciones", "💰 Liquidaciones"],
-      ["disponibilidad", "🗓 Disponibilidad"]
-    ]
+    const { usuario } = useUsuario();
+
+    let opciones = [];
+
+if (esDueno(usuario)) {
+
+  opciones = [
+    ["calendario", "📅 Calendario"],
+    ["recordatorios", "📲 Recordatorios"],
+    ["listado", "📋 Turnos"],
+    ["nuevo", "➕ Nuevo turno"],
+    ["profesionales", "👩‍🎨 Profesionales"],
+    ["liquidaciones", "💰 Liquidaciones"],
+    ["disponibilidad", "🗓 Disponibilidad"]
+  ];
+
+}
+
+if (esProfesional(usuario)) {
+
+  opciones = [
+    ["calendario", "📅 Mi agenda"],
+    ["listado", "📋 Mis turnos"],
+    ["disponibilidad", "🗓 Mi disponibilidad"]
+  ];
+
+}
   
     return (
       <header

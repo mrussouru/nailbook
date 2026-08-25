@@ -1,26 +1,61 @@
+import { estaDisponible } from "./estaDisponible";
+
 // ===========================================
 // MDI
 // Buscar profesionales disponibles
 // ===========================================
 
 export function buscarDisponibles(
-  candidatas,
-  fecha,
-  hora,
-  turnos
-){
+    candidatas,
+    fecha,
+    hora,
+    turnos,
+    servicios,
+    servicioId,
+    licencias
+) {
 
-  return candidatas.filter(profesional =>
+    const disponibles = [];
+    let motivo = "No hay profesionales disponibles.";
 
-      !turnos.some(turno =>
+    for (const profesional of candidatas) {
 
-          turno.profesional_id === profesional.id &&
-          turno.fecha === fecha &&
-          turno.hora === hora &&
-          turno.estado !== "cancelado"
+        const resultado = estaDisponible({
 
-      )
+            profesionalId: profesional.id,
 
-  );
+            fecha,
+
+            hora,
+
+            servicioId,
+
+            turnos,
+
+            servicios,
+
+            licencias
+
+        });
+
+        if (resultado.disponible) {
+
+            disponibles.push(profesional);
+
+        } else {
+
+            motivo = resultado.motivo;
+
+        }
+
+    }
+
+    return {
+
+        disponibles,
+
+        motivo
+
+    };
 
 }

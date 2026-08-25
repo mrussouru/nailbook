@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import {
     guardarHorarios,
-    cargarHorariosProfesional
-  } from "../motores/disponibilidad";
+    cargarHorariosProfesional,
+    guardarLicencia,
+    cargarLicencias
+} from "../motores/disponibilidad";
 
 export default function Disponibilidad({ profesionales }) {
 
@@ -24,22 +26,26 @@ export default function Disponibilidad({ profesionales }) {
 
       const [horarios, setHorarios] = useState({});
 
+      const [licencias, setLicencias] = useState({});
+
       useEffect(() => {
 
         async function cargar() {
       
-          const estado = {};
+          const estadoHorarios = {};
+          const estadoLicencias = {};
       
           for (const profesional of profesionales) {
       
+            // Horarios
             const horariosBD =
               await cargarHorariosProfesional(profesional.id);
       
-            estado[profesional.id] = {};
+            estadoHorarios[profesional.id] = {};
       
             horariosBD.forEach(h => {
       
-              estado[profesional.id][h.dia_semana] = {
+              estadoHorarios[profesional.id][h.dia_semana] = {
       
                 activo: h.activo,
       
@@ -51,9 +57,30 @@ export default function Disponibilidad({ profesionales }) {
       
             });
       
+            // Licencias
+            const licenciasBD =
+              await cargarLicencias(profesional.id);
+      
+            if (licenciasBD.length > 0) {
+      
+              const licencia = licenciasBD[0];
+      
+              estadoLicencias[profesional.id] = {
+      
+                desde: licencia.fecha_desde,
+      
+                hasta: licencia.fecha_hasta,
+      
+                motivo: licencia.motivo || ""
+      
+              };
+      
+            }
+      
           }
       
-          setHorarios(estado);
+          setHorarios(estadoHorarios);
+          setLicencias(estadoLicencias);
       
         }
       
@@ -163,6 +190,46 @@ export default function Disponibilidad({ profesionales }) {
           console.error(error);
       
           alert("Error al guardar el horario");
+      
+        }
+      
+      }
+
+      async function guardarNuevaLicencia(profesionalId) {
+
+        const licencia = licencias[profesionalId];
+      
+        if (!licencia?.desde || !licencia?.hasta) {
+      
+          alert("Debés seleccionar las fechas.");
+      
+          return;
+      
+        }
+      
+        try {
+      
+          await guardarLicencia({
+      
+            profesional_id: profesionalId,
+      
+            fecha_desde: licencia.desde,
+      
+            fecha_hasta: licencia.hasta,
+      
+            motivo: licencia.motivo || ""
+      
+          });
+      
+          alert("✅ Licencia guardada");
+      
+        }
+      
+        catch(error){
+      
+          console.error(error);
+      
+          alert("Error al guardar la licencia");
       
         }
       
@@ -323,6 +390,99 @@ value={
   }}
 >
   💾 Guardar horario
+</button>
+<hr
+  style={{
+    margin: "25px 0",
+    border: "none",
+    borderTop: "1px solid #f0d9e8"
+  }}
+/>
+
+<h4
+  style={{
+    margin: "0 0 15px",
+    color: "#b05080"
+  }}
+>
+  🌴 Licencias
+</h4>
+
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10
+  }}
+>
+
+  <input
+    type="date"
+    value={licencias[profesional.id]?.desde || ""}
+    onChange={e =>
+      setLicencias(actual => ({
+        ...actual,
+        [profesional.id]: {
+          ...(actual[profesional.id] || {}),
+          desde: e.target.value
+        }
+      }))
+    }
+  />
+
+  <input
+    type="date"
+    value={licencias[profesional.id]?.hasta || ""}
+    onChange={e =>
+      setLicencias(actual => ({
+        ...actual,
+        [profesional.id]: {
+          ...(actual[profesional.id] || {}),
+          hasta: e.target.value
+        }
+      }))
+    }
+  />
+
+</div>
+
+<textarea
+  rows={2}
+  placeholder="Motivo de la licencia..."
+  value={licencias[profesional.id]?.motivo || ""}
+  onChange={e =>
+    setLicencias(actual => ({
+      ...actual,
+      [profesional.id]: {
+        ...(actual[profesional.id] || {}),
+        motivo: e.target.value
+      }
+    }))
+  }
+  style={{
+    width: "100%",
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    border: "1px solid #ddd",
+    boxSizing: "border-box"
+  }}
+/>
+
+<button
+  onClick={() => guardarNuevaLicencia(profesional.id)}
+  style={{
+    marginTop: 12,
+    padding: "10px 18px",
+    border: "none",
+    borderRadius: 10,
+    background: "#2ecc71",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 700
+  }}
+>
+  ➕ Guardar licencia
 </button>
     </div>
 

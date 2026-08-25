@@ -19,6 +19,8 @@ export function estaDisponible({
 
     servicios,
 
+    licencias = [],
+
     ignorarId = null
 
 }) {
@@ -36,6 +38,33 @@ export function estaDisponible({
         };
 
     }
+
+    // ===========================================
+// Verificar licencia
+// ===========================================
+
+const licencia = licencias.find(l =>
+
+    l.profesional_id === profesionalId &&
+
+    fecha >= l.fecha_desde &&
+
+    fecha <= l.fecha_hasta
+
+);
+
+if (licencia) {
+
+
+    return {
+
+        disponible: false,
+
+        motivo: "La profesional está de licencia"
+
+    };
+
+}
 
     const inicioNuevo = horaAMinutos(hora);
 
@@ -87,6 +116,8 @@ export function estaDisponible({
         };
 
     }
+
+    
 
     return {
 
