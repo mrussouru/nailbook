@@ -1,4 +1,5 @@
 import { supabase } from "../../supabaseClient";
+import { cargarUsuario } from "../auth";
 
 export async function guardarRendicion(datos) {
 
@@ -63,7 +64,9 @@ export async function generarRendiciones(resumen, fechaDesde, fechaHasta) {
 
 export async function cargarRendiciones() {
 
-    const { data, error } = await supabase
+    const usuario = await cargarUsuario();
+
+    let consulta = supabase
         .from("rendiciones")
         .select(`
             *,
@@ -71,8 +74,21 @@ export async function cargarRendiciones() {
                 nombre,
                 color
             )
-        `)
-        .order("created_at", { ascending: false });
+        `);
+
+    if (usuario?.rol === "profesional") {
+
+        consulta = consulta.eq(
+            "profesional_id",
+            usuario.profesional_id
+        );
+
+    }
+
+    const { data, error } = await consulta.order(
+        "created_at",
+        { ascending: false }
+    );
 
     if (error) throw error;
 

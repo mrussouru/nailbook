@@ -41,6 +41,8 @@ export default function PanelInterno() {
   const hoy = formatDate(new Date())
   const manana = addDays(hoy, 1)
   const { usuario } = useUsuario();
+  const esDuenoActual = usuario?.rol === "dueno";
+  const esProfesionalActual = usuario?.rol === "profesional";
 
   const turnosVisibles = useMemo(() => {
 
@@ -62,6 +64,22 @@ export default function PanelInterno() {
 
   const cargarTodo = useCallback(async () => {
     setCargando(true)
+    let consultaTurnos = supabase
+    .from("turnos")
+    .select("*");
+
+if (usuario?.rol === "profesional") {
+
+    consultaTurnos = consultaTurnos.eq(
+        "profesional_id",
+        usuario.profesional_id
+    );
+
+}
+
+consultaTurnos = consultaTurnos
+    .order("fecha")
+    .order("hora");
     const [
       { data: s },
       { data: t },
@@ -75,11 +93,7 @@ export default function PanelInterno() {
         .eq("activo", true)
         .order("orden"),
     
-      supabase
-        .from("turnos")
-        .select("*")
-        .order("fecha")
-        .order("hora"),
+        consultaTurnos,
     
       supabase
         .from("profesionales")
