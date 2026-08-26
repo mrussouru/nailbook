@@ -25,7 +25,8 @@ if (esDueno(usuario)) {
     ["nuevo", "➕ Nuevo turno"],
     ["profesionales", "👩‍🎨 Profesionales"],
     ["liquidaciones", "💰 Liquidaciones"],
-    ["disponibilidad", "🗓 Disponibilidad"]
+    ["disponibilidad", "🗓 Disponibilidad"],
+    ["rendiciones", "📋 Rendiciones"],
   ];
 
 }
@@ -34,8 +35,7 @@ if (esProfesional(usuario)) {
 
   opciones = [
     ["calendario", "📅 Mi agenda"],
-    ["listado", "📋 Mis turnos"],
-    ["disponibilidad", "🗓 Mi disponibilidad"]
+    ["listado", "📋 Mis turnos"]
   ];
 
 }

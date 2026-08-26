@@ -3,25 +3,45 @@
 // Resumen por profesional
 // ===========================================
 
+import { filtrarTurnosPorPeriodo } from "../fechas/filtros";
+
 export function calcularResumen(
-    turnos,
-    servicios,
-    profesionales,
-    fecha
-  ) {
+  turnos,
+  servicios,
+  profesionales,
+  fecha,
+  periodo = "hoy",
+  fechaDesde = null,
+  fechaHasta = null
+) {
   
     return profesionales
       .map(profesional => {
+
+
+        const turnosFiltrados =
+    filtrarTurnosPorPeriodo(
+        turnos,
+        fecha,
+        periodo,
+        fechaDesde,
+        fechaHasta
+    );
+
+    const turnosDelPeriodo = turnosFiltrados.filter(turno => {
+
+      if (turno.profesional_id !== profesional.id) return false;
   
-        const turnosDelDia = turnos.filter(turno =>
+      if (turno.estado === "cancelado") return false;
   
-          turno.profesional_id === profesional.id &&
-          turno.fecha === fecha &&
-          turno.estado !== "cancelado"
+      // Si el filtro ya hizo su trabajo,
+      // no hace falta volver a comparar la fecha.
   
-        );
+      return true;
   
-        const facturacion = turnosDelDia.reduce((total, turno) => {
+  });
+  
+        const facturacion = turnosDelPeriodo.reduce((total, turno) => {
   
           const servicio = servicios.find(
             s => s.id === turno.servicio
@@ -35,9 +55,9 @@ export function calcularResumen(
   
           profesional,
   
-          turnos: turnosDelDia,
+          turnos: turnosDelPeriodo,
   
-          cantidadTurnos: turnosDelDia.length,
+          cantidadTurnos: turnosDelPeriodo.length,
   
           facturacion
   

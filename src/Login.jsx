@@ -21,7 +21,7 @@ export default function Login({ children }) {
         const usuarioBD = await cargarUsuario();
     
         setUsuario(usuarioBD);
-        console.log(usuarioBD);
+        
     
       }
     
@@ -37,7 +37,7 @@ if (session) {
   const usuarioBD = await cargarUsuario();
 
   setUsuario(usuarioBD);
-  console.log(usuarioBD);
+ 
 
 } else {
 

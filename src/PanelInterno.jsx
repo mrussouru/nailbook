@@ -12,6 +12,7 @@ import { ejecutarMDI } from "./motores/MDI";
 import Liquidaciones from "./components/Liquidaciones";
 import Disponibilidad from "./components/Disponibilidad";
 import { useUsuario } from "./context/UsuarioContext";
+import Rendiciones from "./components/Rendiciones";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -484,28 +485,27 @@ setTurnoSeleccionado={setTurnoSeleccionado}
           {vista === "liquidaciones" && (
 
           <Liquidaciones
-
-            turnos={turnosVisibles}
-
-            servicios={servicios}
-
-            profesionales={profesionales}
-
-            fecha={fechaSeleccionada}
-
+          turnos={turnosVisibles}
+          servicios={servicios}
+          profesionales={profesionales}
           />
 
           )}
 
-          {vista === "disponibilidad" && (
+          {vista === "disponibilidad" && usuario?.rol === "dueno" && (
 
           <Disponibilidad
-
             profesionales={profesionales}
-
           />
 
           )}
+
+          {vista === "rendiciones" && (
+
+          <Rendiciones />
+
+          )}
+
       </main>
     </div>
   )

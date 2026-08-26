@@ -1,31 +1,57 @@
+import { obtenerPeriodo } from "../motores/fechas/periodo";
+import { generarRendiciones } from "../motores/rendiciones";
+import { useState } from "react";
 import {
     calcularResumen,
     calcularTotales
   } from "../motores/liquidaciones";
 
-export default function Liquidaciones({
+  export default function Liquidaciones({
 
     turnos,
-  
+
     servicios,
+
+    profesionales
+
+}) {
+
+    const [periodo, setPeriodo] = useState("hoy");
+
+    const hoy = new Date().toISOString().slice(0, 10);
+    const [fechaBase, setFechaBase] = useState(hoy);
+    const [fechaDesde, setFechaDesde] = useState(hoy);
+    const [fechaHasta, setFechaHasta] = useState(hoy);
+
+    const periodoSeleccionado = obtenerPeriodo(
+
+      periodo,
   
-    profesionales,
+      fechaBase,
   
-    fecha
+      fechaDesde,
   
-  }) {
+      fechaHasta
+  
+  );
   
     const resumen = calcularResumen(
 
-        turnos,
-      
-        servicios,
-      
-        profesionales,
-      
-        fecha
-      
-      );
+      turnos,
+  
+      servicios,
+  
+      profesionales,
+  
+      fechaBase,
+  
+      periodo,
+  
+      fechaDesde,
+  
+      fechaHasta
+  
+  );
 
       const {
 
@@ -36,9 +62,26 @@ export default function Liquidaciones({
         salon: totalSalon
       
       } = calcularTotales(resumen);
+
+      async function generar() {
+
+        await generarRendiciones(
+
+          resumen,
+      
+          periodoSeleccionado.desde,
+      
+          periodoSeleccionado.hasta
+      
+      );
+    
+        alert("✅ Rendiciones generadas");
+    
+    }
       
     return (
-  
+      
+    
       <div>
   
         <h2
@@ -48,7 +91,7 @@ export default function Liquidaciones({
             color: "#b05080"
           }}
         >
-          💰 Liquidaciones
+          📈 Producción
         </h2>
   
         <div
@@ -59,7 +102,134 @@ export default function Liquidaciones({
             border: "2px solid #f0d9e8"
           }}
         >
+          <div
+  style={{
+    display: "flex",
+    gap: 10,
+    marginBottom: 20,
+    flexWrap: "wrap"
+  }}
+>
+
+  {[
+    ["hoy", "📅 Hoy"],
+    ["semana", "🗓 Semana"],
+    ["mes", "📆 Mes"],
+    ["personalizado", "📂 Personalizado"]
+  ].map(([valor, texto]) => (
+
+    <button
+      key={valor}
+      onClick={() => setPeriodo(valor)}
+      style={{
+        padding: "8px 16px",
+        borderRadius: 20,
+        border: "2px solid #f0d9e8",
+        cursor: "pointer",
+        background:
+          periodo === valor
+            ? "#b05080"
+            : "#fff",
+        color:
+          periodo === valor
+            ? "#fff"
+            : "#b05080",
+        fontWeight: 700
+      }}
+    >
+      {texto}
+    </button>
+
+  ))}
+  {periodo === "personalizado" && (
+
+<div
+  style={{
+    display: "flex",
+    gap: 15,
+    marginTop: 20,
+    alignItems: "center",
+    flexWrap: "wrap"
+  }}
+>
+
+  <div>
+    <label>Desde</label>
+
+    <input
+      type="date"
+      value={fechaDesde}
+      onChange={e => setFechaDesde(e.target.value)}
+    />
+  </div>
+
+  <div>
+    <label>Hasta</label>
+
+    <input
+      type="date"
+      value={fechaHasta}
+      onChange={e => setFechaHasta(e.target.value)}
+    />
+  </div>
+
+</div>
+
+)}
+
+</div>
             <div
+  style={{
+    background: "#fff7fb",
+    border: "2px solid #f0d9e8",
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24
+  }}
+>
+
+<div
+  style={{
+    fontWeight: 700,
+    color: "#b05080",
+    marginBottom: 16
+  }}
+>
+
+  {periodo === "hoy" && `📅 Hoy (${fechaBase})`}
+
+  {periodo === "semana" && "🗓 Esta semana"}
+
+  {periodo === "mes" && "📆 Este mes"}
+
+  {periodo === "personalizado" && "📂 Período personalizado"}
+
+</div>
+
+</div>
+
+<div
+  style={{
+    marginBottom: 20
+  }}
+>
+  <button
+    onClick={generar}
+    style={{
+      padding: "10px 18px",
+      border: "none",
+      borderRadius: 10,
+      background: "#2ecc71",
+      color: "#fff",
+      cursor: "pointer",
+      fontWeight: 700
+    }}
+  >
+    💾 Generar rendiciones
+  </button>
+</div>
+
+<div
   style={{
     background: "#fff7fb",
     border: "2px solid #f0d9e8",
@@ -71,22 +241,12 @@ export default function Liquidaciones({
 
   <div
     style={{
-      fontWeight: 700,
-      color: "#b05080",
-      marginBottom: 16
-    }}
-  >
-    📅 {fecha}
-  </div>
-
-  <div
-    style={{
       display: "flex",
       justifyContent: "space-between",
       marginBottom: 12
     }}
   >
-    <span>💵 Facturación</span>
+    <span>💵 Producción</span>
 
     <strong>
       ${totalFacturacion.toLocaleString("es-UY")}
@@ -101,7 +261,7 @@ export default function Liquidaciones({
       marginBottom: 12
     }}
   >
-    <span>🏠 Salón</span>
+    <span>🏠 Corresponde al salón</span>
 
     <strong>
       ${totalSalon.toLocaleString("es-UY")}
@@ -115,7 +275,7 @@ export default function Liquidaciones({
       justifyContent: "space-between"
     }}
   >
-    <span>👩 Profesionales</span>
+    <span>👩 Corresponde a profesionales</span>
 
     <strong>
       ${totalProfesionales.toLocaleString("es-UY")}
@@ -125,7 +285,7 @@ export default function Liquidaciones({
 
 </div>
           <h3 style={{ marginTop: 0 }}>
-            Resumen diario
+          Producción por profesional
           </h3>
   
           <div
