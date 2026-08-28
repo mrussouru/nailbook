@@ -1,5 +1,4 @@
-import { obtenerPeriodo } from "../motores/fechas/periodo";
-import { generarRendiciones } from "../motores/rendiciones";
+
 import { useState } from "react";
 import {
     calcularResumen,
@@ -23,17 +22,7 @@ import {
     const [fechaDesde, setFechaDesde] = useState(hoy);
     const [fechaHasta, setFechaHasta] = useState(hoy);
 
-    const periodoSeleccionado = obtenerPeriodo(
-
-      periodo,
-  
-      fechaBase,
-  
-      fechaDesde,
-  
-      fechaHasta
-  
-  );
+    
   
     const resumen = calcularResumen(
 
@@ -63,21 +52,6 @@ import {
       
       } = calcularTotales(resumen);
 
-      async function generar() {
-
-        await generarRendiciones(
-
-          resumen,
-      
-          periodoSeleccionado.desde,
-      
-          periodoSeleccionado.hasta
-      
-      );
-    
-        alert("✅ Rendiciones generadas");
-    
-    }
       
     return (
       
@@ -213,20 +187,7 @@ import {
     marginBottom: 20
   }}
 >
-  <button
-    onClick={generar}
-    style={{
-      padding: "10px 18px",
-      border: "none",
-      borderRadius: 10,
-      background: "#2ecc71",
-      color: "#fff",
-      cursor: "pointer",
-      fontWeight: 700
-    }}
-  >
-    💾 Generar rendiciones
-  </button>
+  
 </div>
 
 <div

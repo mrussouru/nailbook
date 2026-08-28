@@ -167,6 +167,8 @@ export default function ReservaPublica() {
 
     nota: nota.trim(),
 
+    precio: servicioInfo?.precio ?? null,
+
   });
     setCargando(false)
     if (err) {

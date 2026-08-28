@@ -31,12 +31,10 @@ export function calcularResumen(
     const turnosDelPeriodo = turnosFiltrados.filter(turno => {
 
       if (turno.profesional_id !== profesional.id) return false;
-  
-      if (turno.estado === "cancelado") return false;
-  
-      // Si el filtro ya hizo su trabajo,
-      // no hace falta volver a comparar la fecha.
-  
+
+      // Producción solamente contempla turnos realizados
+      if (turno.estado !== "completado") return false;
+
       return true;
   
   });

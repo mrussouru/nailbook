@@ -1,66 +1,29 @@
 import { supabase } from "../../supabaseClient";
 import { cargarUsuario } from "../auth";
 
+
+// ==========================================
+// GUARDAR RENDICIÓN
+// ==========================================
+
 export async function guardarRendicion(datos) {
 
-    const { error } = await supabase
+    const { data, error } = await supabase
         .from("rendiciones")
-        .insert(datos);
+        .insert(datos)
+        .select()
+        .single();
 
     if (error) throw error;
 
-}
-
-export async function generarRendiciones(resumen, fechaDesde, fechaHasta) {
-
-    for (const item of resumen) {
-
-        const porcentaje =
-            Number(item.profesional.porcentaje || 0);
-
-        const montoProfesional =
-            item.facturacion * porcentaje / 100;
-
-        const montoSalon =
-            item.facturacion - montoProfesional;
-
-            const yaExiste = await existeRendicion(
-
-                item.profesional.id,
-            
-                fechaDesde,
-            
-                fechaHasta
-            
-            );
-            
-            if (yaExiste) {
-            
-                continue;
-            
-            }    
-
-        await guardarRendicion({
-
-            profesional_id: item.profesional.id,
-
-            fecha_desde: fechaDesde,
-
-            fecha_hasta: fechaHasta,
-
-            facturacion: item.facturacion,
-
-            monto_salon: montoSalon,
-
-            monto_profesional: montoProfesional,
-
-            estado: "pendiente"
-
-        });
-
-    }
+    return data;
 
 }
+
+
+// ==========================================
+// CARGAR RENDICIONES
+// ==========================================
 
 export async function cargarRendiciones() {
 
@@ -76,6 +39,7 @@ export async function cargarRendiciones() {
             )
         `);
 
+    // Si es profesional, solamente ve sus rendiciones
     if (usuario?.rol === "profesional") {
 
         consulta = consulta.eq(
@@ -96,84 +60,94 @@ export async function cargarRendiciones() {
 
 }
 
-export async function existeRendicion(
 
-    profesionalId,
-
-    fechaDesde,
-
-    fechaHasta
-
-) {
-
-    const { data, error } = await supabase
-
-        .from("rendiciones")
-
-        .select("id")
-
-        .eq("profesional_id", profesionalId)
-
-        .eq("fecha_desde", fechaDesde)
-
-        .eq("fecha_hasta", fechaHasta)
-
-        .limit(1);
-
-    if (error) throw error;
-
-    return data.length > 0;
-
-}
+// ==========================================
+// MARCAR RENDICIÓN COMO PAGADA
+// ==========================================
 
 export async function marcarComoPagada(id) {
 
-    const hoy = new Date().toISOString().slice(0,10);
+    const hoy = new Date()
+        .toISOString()
+        .slice(0, 10);
 
     const { error } = await supabase
-
         .from("rendiciones")
-
         .update({
-
             estado: "pagado",
-
             fecha_pago: hoy
-
         })
-
         .eq("id", id);
 
     if (error) throw error;
 
 }
 
+
+// ==========================================
+// CARGAR DETALLE DE UNA RENDICIÓN
+// ==========================================
+
 export async function cargarDetalleRendicion(rendicion) {
 
     const { data, error } = await supabase
-
         .from("turnos")
-
         .select(`
             *,
             servicios(*),
             profesionales(*)
         `)
-
-        .eq("profesional_id", rendicion.profesional_id)
-
-        .gte("fecha", rendicion.fecha_desde)
-
-        .lte("fecha", rendicion.fecha_hasta)
-
-        .neq("estado", "cancelado")
-
-        .order("fecha")
-
-        .order("hora");
+        .eq("rendicion_id", rendicion.id)
+        .order("fecha", { ascending: true })
+        .order("hora", { ascending: true });
 
     if (error) throw error;
 
-    return data;
+    return data || [];
+
+}
+
+
+// ==========================================
+// ASIGNAR TURNOS EXACTOS A UNA RENDICIÓN
+// ==========================================
+
+export async function asignarTurnosARendicion(
+    turnos,
+    rendicionId
+) {
+
+    const ids = turnos.map(t => t.id);
+
+    if (ids.length === 0) return;
+
+    const { error } = await supabase
+        .from("turnos")
+        .update({
+            rendicion_id: rendicionId
+        })
+        .in("id", ids);
+
+    if (error) throw error;
+
+}
+
+
+// ==========================================
+// COMPROBAR SI QUEDAN TURNOS SIN RENDIR
+// ==========================================
+
+export async function hayTurnosSinRendicion() {
+
+    const { data, error } = await supabase
+        .from("turnos")
+        .select("id")
+        .is("rendicion_id", null)
+        .eq("estado", "completado") 
+        .limit(1);
+
+    if (error) throw error;
+
+    return data.length > 0;
 
 }

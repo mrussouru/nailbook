@@ -13,6 +13,8 @@ import Liquidaciones from "./components/Liquidaciones";
 import Disponibilidad from "./components/Disponibilidad";
 import { useUsuario } from "./context/UsuarioContext";
 import Rendiciones from "./components/Rendiciones";
+import Servicios from "./components/Servicios";
+import AtencionEspontanea from "./components/AtencionEspontanea";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -247,6 +249,12 @@ consultaTurnos = consultaTurnos
 
     // La disponibilidad ya fue validada por el MDI
 // if (turnoQueChoca(form.fecha, form.hora, form.servicio)) return;
+
+const servicioSeleccionado = servicios.find(
+  s => s.id === form.servicio
+);
+
+const precioTurno = servicioSeleccionado?.precio ?? null;
   
     const { error } = await supabase
       .from("turnos")
@@ -260,6 +268,7 @@ consultaTurnos = consultaTurnos
         estado: "pendiente",
         origen: "interno",
         nota: form.nota,
+        precio: precioTurno,
       });
   
     if (error) {
@@ -495,6 +504,22 @@ setTurnoSeleccionado={setTurnoSeleccionado}
           {vista === "profesionales" && (
             <Profesionales />
           )} 
+
+          {vista === "servicios" && usuario?.rol === "dueno" && (
+            <Servicios
+              onServiciosActualizados={cargarTodo}
+            />
+          )}
+
+          {vista === "atencion" && (
+            <AtencionEspontanea
+              servicios={servicios}
+              profesionales={profesionales}
+              relacionesServicios={relacionesServicios}
+              usuario={usuario}
+              onAtencionRegistrada={cargarTodo}
+            />
+          )}
 
           {vista === "liquidaciones" && (
 

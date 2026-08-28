@@ -3,7 +3,8 @@ import {
     guardarHorarios,
     cargarHorariosProfesional,
     guardarLicencia,
-    cargarLicencias
+    cargarLicencias,
+    eliminarLicencia
 } from "../motores/disponibilidad";
 
 export default function Disponibilidad({ profesionales }) {
@@ -27,6 +28,8 @@ export default function Disponibilidad({ profesionales }) {
       const [horarios, setHorarios] = useState({});
 
       const [licencias, setLicencias] = useState({});
+
+      const [licenciasGuardadas, setLicenciasGuardadas] = useState({});
 
       useEffect(() => {
 
@@ -57,30 +60,16 @@ export default function Disponibilidad({ profesionales }) {
       
             });
       
-            // Licencias
+            // Licencias guardadas
             const licenciasBD =
-              await cargarLicencias(profesional.id);
+            await cargarLicencias(profesional.id);
+
+            estadoLicencias[profesional.id] = licenciasBD;
+                  
+                      }
       
-            if (licenciasBD.length > 0) {
-      
-              const licencia = licenciasBD[0];
-      
-              estadoLicencias[profesional.id] = {
-      
-                desde: licencia.fecha_desde,
-      
-                hasta: licencia.fecha_hasta,
-      
-                motivo: licencia.motivo || ""
-      
-              };
-      
-            }
-      
-          }
-      
-          setHorarios(estadoHorarios);
-          setLicencias(estadoLicencias);
+                      setHorarios(estadoHorarios);
+                      setLicenciasGuardadas(estadoLicencias);
       
         }
       
@@ -210,17 +199,36 @@ export default function Disponibilidad({ profesionales }) {
         try {
       
           await guardarLicencia({
-      
+
             profesional_id: profesionalId,
-      
+          
             fecha_desde: licencia.desde,
-      
+          
             fecha_hasta: licencia.hasta,
-      
+          
             motivo: licencia.motivo || ""
-      
+          
           });
-      
+          
+          // Volvemos a cargar las licencias del profesional
+          const licenciasActualizadas =
+            await cargarLicencias(profesionalId);
+          
+          setLicenciasGuardadas(actual => ({
+            ...actual,
+            [profesionalId]: licenciasActualizadas
+          }));
+          
+          // Limpiamos el formulario
+          setLicencias(actual => ({
+            ...actual,
+            [profesionalId]: {
+              desde: "",
+              hasta: "",
+              motivo: ""
+            }
+          }));
+          
           alert("✅ Licencia guardada");
       
         }
@@ -230,6 +238,38 @@ export default function Disponibilidad({ profesionales }) {
           console.error(error);
       
           alert("Error al guardar la licencia");
+      
+        }
+      
+      }
+
+      async function quitarLicencia(profesionalId, licenciaId) {
+
+        const confirmar = window.confirm(
+          "¿Seguro que querés quitar esta licencia?"
+        );
+      
+        if (!confirmar) return;
+      
+        try {
+      
+          await eliminarLicencia(licenciaId);
+      
+          setLicenciasGuardadas(actual => ({
+            ...actual,
+            [profesionalId]:
+              (actual[profesionalId] || []).filter(
+                licencia => licencia.id !== licenciaId
+              )
+          }));
+      
+          alert("✅ Licencia eliminada");
+      
+        } catch (error) {
+      
+          console.error(error);
+      
+          alert("Error al eliminar la licencia");
       
         }
       
@@ -407,6 +447,72 @@ value={
 >
   🌴 Licencias
 </h4>
+
+{(licenciasGuardadas[profesional.id] || []).length > 0 && (
+  <div
+    style={{
+      display: "flex",
+      flexDirection: "column",
+      gap: 8,
+      marginBottom: 18
+    }}
+  >
+    {(licenciasGuardadas[profesional.id] || []).map(licencia => (
+      <div
+        key={licencia.id}
+        style={{
+          padding: "10px 12px",
+          border: "1px solid #f0d9e8",
+          borderRadius: 10,
+          background: "#fff8fc"
+        }}
+      >
+        <div style={{ fontWeight: 700 }}>
+          📅 {licencia.fecha_desde} → {licencia.fecha_hasta}
+        </div>
+
+        <div
+          style={{
+            marginTop: 4,
+            fontSize: 14,
+            color: "#666"
+          }}
+        >
+          {licencia.motivo || "Sin motivo"}
+        </div>
+        <button
+  onClick={() =>
+    quitarLicencia(profesional.id, licencia.id)
+  }
+  style={{
+    marginTop: 8,
+    padding: "6px 10px",
+    border: "none",
+    borderRadius: 8,
+    background: "#e74c3c",
+    color: "#fff",
+    cursor: "pointer",
+    fontWeight: 700
+  }}
+>
+  🗑 Quitar
+</button>
+      </div>
+    ))}
+  </div>
+)}
+
+{(licenciasGuardadas[profesional.id] || []).length === 0 && (
+  <div
+    style={{
+      marginBottom: 15,
+      fontSize: 14,
+      color: "#888"
+    }}
+  >
+    No hay licencias registradas.
+  </div>
+)}
 
 <div
   style={{

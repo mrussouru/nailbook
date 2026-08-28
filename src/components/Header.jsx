@@ -16,10 +16,12 @@ export default function Header({
 
   const opcionesDueno = [
     ["calendario", "📅 Calendario"],
-    ["recordatorios", "📲 Recordatorios"],
+   // ["recordatorios", "📲 Recordatorios"],
     ["listado", "📋 Turnos"],
     ["nuevo", "➕ Nuevo turno"],
     ["profesionales", "👩‍🎨 Profesionales"],
+    ["servicios", "💅 Servicios"],
+    ["atencion", "🚶 Atención"],
     ["liquidaciones", "💰 Producción"],
     ["disponibilidad", "🗓 Disponibilidad"],
     ["rendiciones", "📋 Rendiciones"]
@@ -28,6 +30,7 @@ export default function Header({
   const opcionesProfesional = [
     ["calendario", "📅 Mi agenda"],
     ["listado", "📋 Mis turnos"],
+    ["atencion", "🚶 Atención"],
     ["liquidaciones", "💰 Mi producción"],
     ["rendiciones", "📋 Mis rendiciones"]
   ];

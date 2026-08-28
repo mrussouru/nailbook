@@ -1,15 +1,29 @@
 import { useEffect, useState } from "react";
+
 import {
     cargarRendiciones,
     marcarComoPagada,
-    cargarDetalleRendicion
+    cargarDetalleRendicion,
+    hayTurnosSinRendicion
 } from "../motores/rendiciones";
+
+import { generarRendicionesPendientes } from "../motores/rendiciones/generarPendientes";
+import { useUsuario } from "../context/UsuarioContext";
+import { esDueno } from "../motores/auth";
+
 
 export default function Rendiciones() {
 
+    const { usuario } = useUsuario();
+    const puedeAdministrar = esDueno(usuario);
     const [rendiciones, setRendiciones] = useState([]);
     const [rendicionSeleccionada, setRendicionSeleccionada] = useState(null);
     const [detalle, setDetalle] = useState([]);
+    const [hayPendientes, setHayPendientes] = useState(false);
+
+    const [filtroEstado, setFiltroEstado] = useState("todas");
+    const [filtroProfesional, setFiltroProfesional] = useState("todas");
+
 
     useEffect(() => {
 
@@ -19,11 +33,16 @@ export default function Rendiciones() {
 
             setRendiciones(datos);
 
+            const pendientes = await hayTurnosSinRendicion();
+
+            setHayPendientes(pendientes);
+
         }
 
         cargar();
 
     }, []);
+
 
     async function pagar(id) {
 
@@ -35,6 +54,7 @@ export default function Rendiciones() {
 
     }
 
+
     async function abrirDetalle(r) {
 
         setRendicionSeleccionada(r);
@@ -44,6 +64,47 @@ export default function Rendiciones() {
         setDetalle(datos);
 
     }
+
+
+    // ==========================================
+    // FILTROS
+    // ==========================================
+
+    const rendicionesFiltradas = rendiciones.filter(r => {
+
+        const cumpleEstado =
+            filtroEstado === "todas" ||
+            r.estado === filtroEstado;
+
+        const cumpleProfesional =
+            filtroProfesional === "todas" ||
+            r.profesional_id === filtroProfesional;
+
+        return cumpleEstado && cumpleProfesional;
+
+    });
+
+
+    // Profesionales que aparecen en las rendiciones
+    const profesionalesDisponibles = Array.from(
+
+        new Map(
+
+            rendiciones.map(r => [
+
+                r.profesional_id,
+
+                {
+                    id: r.profesional_id,
+                    nombre: r.profesionales?.nombre
+                }
+
+            ])
+
+        ).values()
+
+    );
+
 
     return (
 
@@ -60,6 +121,179 @@ export default function Rendiciones() {
                     📋 Rendiciones
                 </h2>
 
+
+                {/* ==========================================
+                    GENERAR RENDICIONES PENDIENTES
+                ========================================== */}
+
+                {puedeAdministrar && (
+                    hayPendientes ? (
+
+                    <div
+                        style={{
+                            border: "2px solid #f0d9e8",
+                            borderRadius: 16,
+                            padding: 20,
+                            marginBottom: 24,
+                            background: "#fff"
+                        }}
+                    >
+
+                        <h3
+                            style={{
+                                marginTop: 0,
+                                color: "#b05080"
+                            }}
+                        >
+                            💰 Rendiciones pendientes
+                        </h3>
+
+                        <p
+                            style={{
+                                color: "#666"
+                            }}
+                        >
+                            Genera automáticamente las rendiciones de todos los turnos pendientes.
+                        </p>
+
+                        <button
+                            onClick={async () => {
+
+                                await generarRendicionesPendientes();
+
+                                const datos =
+                                    await cargarRendiciones();
+
+                                setRendiciones(datos);
+
+                                const pendientes =
+                                    await hayTurnosSinRendicion();
+
+                                setHayPendientes(pendientes);
+
+                                alert(
+                                    "✅ Rendiciones generadas correctamente"
+                                );
+
+                            }}
+                            style={{
+                                padding: "10px 18px",
+                                border: "none",
+                                borderRadius: 10,
+                                background: "#22c55e",
+                                color: "#fff",
+                                cursor: "pointer",
+                                fontWeight: 700
+                            }}
+                        >
+                            💰 Generar rendiciones pendientes
+                        </button>
+
+                    </div>
+
+                ) : (
+
+                    <div
+                        style={{
+                            border: "2px solid #d1fae5",
+                            borderRadius: 16,
+                            padding: 20,
+                            marginBottom: 24,
+                            background: "#f0fdf4",
+                            color: "#166534",
+                            fontWeight: 700
+                        }}
+                    >
+                        ✅ No hay turnos pendientes de rendir.
+                    </div>
+
+            ))}
+
+
+                {/* ==========================================
+                    FILTROS DE RENDICIONES
+                ========================================== */}
+
+                <div
+                    style={{
+                        display: "flex",
+                        gap: 12,
+                        flexWrap: "wrap",
+                        marginBottom: 20,
+                        alignItems: "center"
+                    }}
+                >
+
+                    <select
+                        value={filtroEstado}
+                        onChange={e =>
+                            setFiltroEstado(e.target.value)
+                        }
+                        style={{
+                            padding: "9px 14px",
+                            borderRadius: 10,
+                            border: "2px solid #f0d9e8",
+                            background: "#fff",
+                            color: "#555",
+                            cursor: "pointer"
+                        }}
+                    >
+
+                        <option value="todas">
+                            📋 Todas
+                        </option>
+
+                        <option value="pendiente">
+                            🟡 Pendientes
+                        </option>
+
+                        <option value="pagado">
+                            🟢 Pagadas
+                        </option>
+
+                    </select>
+
+                {puedeAdministrar && (
+                    <select
+                        value={filtroProfesional}
+                        onChange={e =>
+                            setFiltroProfesional(e.target.value)
+                        }
+                        style={{
+                            padding: "9px 14px",
+                            borderRadius: 10,
+                            border: "2px solid #f0d9e8",
+                            background: "#fff",
+                            color: "#555",
+                            cursor: "pointer"
+                        }}
+                    >
+
+                        <option value="todas">
+                            👩 Todas las profesionales
+                        </option>
+
+                        {profesionalesDisponibles.map(p => (
+
+                            <option
+                                key={p.id}
+                                value={p.id}
+                            >
+                                {p.nombre}
+                            </option>
+
+                        ))}
+
+                    </select>
+                )}    
+
+                </div>
+
+
+                {/* ==========================================
+                    LISTADO DE RENDICIONES
+                ========================================== */}
+
                 <div
                     style={{
                         display: "flex",
@@ -68,19 +302,20 @@ export default function Rendiciones() {
                     }}
                 >
 
-                    {rendiciones.length === 0 && (
+                    {rendicionesFiltradas.length === 0 && (
 
                         <div
                             style={{
                                 color: "#888"
                             }}
                         >
-                            No hay rendiciones registradas.
+                            No hay rendiciones para los filtros seleccionados.
                         </div>
 
                     )}
 
-                    {rendiciones.map(r => (
+
+                    {rendicionesFiltradas.map(r => (
 
                         <div
                             key={r.id}
@@ -97,119 +332,139 @@ export default function Rendiciones() {
                             <h3
                                 style={{
                                     margin: 0,
-                                    color: r.profesionales?.color || "#b05080"
+                                    color:
+                                        r.profesionales?.color ||
+                                        "#b05080"
                                 }}
                             >
                                 👩 {r.profesionales?.nombre}
                             </h3>
 
+
                             <p>
 
-                                {r.fecha_desde} → {r.fecha_hasta}
+                                {r.fecha_desde}
+                                {" → "}
+                                {r.fecha_hasta}
 
                             </p>
+
 
                             <p>
 
                                 Facturación:
+
                                 <strong>
 
                                     {" "}
-                                    ${Number(r.facturacion).toLocaleString("es-UY")}
+
+                                    ${Number(
+                                        r.facturacion
+                                    ).toLocaleString("es-UY")}
 
                                 </strong>
 
                             </p>
+
 
                             <p>
 
                                 Salón:
+
                                 <strong>
 
                                     {" "}
-                                    ${Number(r.monto_salon).toLocaleString("es-UY")}
+
+                                    ${Number(
+                                        r.monto_salon
+                                    ).toLocaleString("es-UY")}
 
                                 </strong>
 
                             </p>
+
 
                             <p>
 
                                 Profesional:
+
                                 <strong>
 
                                     {" "}
-                                    ${Number(r.monto_profesional).toLocaleString("es-UY")}
+
+                                    ${Number(
+                                        r.monto_profesional
+                                    ).toLocaleString("es-UY")}
 
                                 </strong>
 
                             </p>
 
+
                             <div
-                                style={{
-                                    marginTop: 12
-                                }}
-                            >
+    style={{
+        marginTop: 12
+    }}
+>
 
-                                {r.estado === "pagado" ? (
+    {r.estado === "pagado" ? (
 
-                                    <div
-                                        style={{
-                                            color: "#2ecc71",
-                                            fontWeight: 700
-                                        }}
-                                    >
-                                        🟢 Pagada
+        <div
+            style={{
+                color: "#2ecc71",
+                fontWeight: 700
+            }}
+        >
 
-                                        <br />
+            🟢 Pagada
 
-                                        <small>
+            <br />
 
-                                            {r.fecha_pago}
+            <small>
+                {r.fecha_pago}
+            </small>
 
-                                        </small>
+        </div>
 
-                                    </div>
+    ) : puedeAdministrar ? (
 
-                                ) : (
+        <button
+            onClick={(e) => {
 
-                                    <button
+                e.stopPropagation();
 
-                                        onClick={(e) => {
+                pagar(r.id);
 
-                                            e.stopPropagation();
+            }}
+            style={{
+                padding: "8px 14px",
+                border: "none",
+                borderRadius: 8,
+                background: "#2ecc71",
+                color: "#fff",
+                cursor: "pointer",
+                fontWeight: 700
+            }}
+        >
 
-                                            pagar(r.id);
+            ✔ Marcar como pagada
 
-                                        }}
+        </button>
 
-                                        style={{
+    ) : (
 
-                                            padding: "8px 14px",
+        <div
+            style={{
+                color: "#d99a00",
+                fontWeight: 700
+            }}
+        >
+            🟡 Pendiente
+        </div>
 
-                                            border: "none",
+    )}
 
-                                            borderRadius: 8,
-
-                                            background: "#2ecc71",
-
-                                            color: "#fff",
-
-                                            cursor: "pointer",
-
-                                            fontWeight: 700
-
-                                        }}
-
-                                    >
-
-                                        ✔ Marcar como pagada
-
-                                    </button>
-
-                                )}
-
-                            </div>
+</div>
 
                         </div>
 
@@ -218,6 +473,11 @@ export default function Rendiciones() {
                 </div>
 
             </div>
+
+
+            {/* ==========================================
+                DETALLE DE RENDICIÓN
+            ========================================== */}
 
             {rendicionSeleccionada && (
 
@@ -232,8 +492,10 @@ export default function Rendiciones() {
                         borderLeft: "2px solid #f0d9e8",
                         padding: 25,
                         overflowY: "auto",
-                        boxShadow: "-5px 0 20px rgba(0,0,0,.15)",
-                        zIndex: 9999
+                        boxShadow:
+                            "-5px 0 20px rgba(0,0,0,.15)",
+                        zIndex: 9999,
+                        boxSizing: "border-box"
                     }}
                 >
 
@@ -254,8 +516,8 @@ export default function Rendiciones() {
                         }}
                     >
                         ✕
-
                     </button>
+
 
                     <h2
                         style={{
@@ -265,11 +527,14 @@ export default function Rendiciones() {
                         📋 Rendición
                     </h2>
 
+
                     <h3>
 
-                        {rendicionSeleccionada.profesionales?.nombre}
+                        {rendicionSeleccionada
+                            .profesionales?.nombre}
 
                     </h3>
+
 
                     <p>
 
@@ -281,13 +546,14 @@ export default function Rendiciones() {
 
                     </p>
 
+
                     <hr />
 
+
                     <h3>
-
                         Turnos
-
                     </h3>
+
 
                     {detalle.map(turno => (
 
@@ -296,13 +562,16 @@ export default function Rendiciones() {
                             style={{
                                 marginBottom: 18,
                                 paddingBottom: 12,
-                                borderBottom: "1px solid #eee"
+                                borderBottom:
+                                    "1px solid #eee"
                             }}
                         >
 
                             <strong>
 
-                                {turno.fecha} - {turno.hora}
+                                {turno.fecha}
+                                {" - "}
+                                {turno.hora}
 
                             </strong>
 
@@ -316,31 +585,36 @@ export default function Rendiciones() {
 
                             <br />
 
-                            💵 ${Number(turno.servicios?.precio || 0).toLocaleString("es-UY")}
+                            💵 ${Number(
+                                turno.servicios?.precio || 0
+                            ).toLocaleString("es-UY")}
 
                         </div>
 
                     ))}
 
+
                     <hr />
+
 
                     <div
                         style={{
                             display: "flex",
                             justifyContent: "space-between",
-                            marginTop: 15
+                            marginTop: 15,
+                            paddingBottom: 25
                         }}
                     >
 
                         <strong>
-
                             Total
-
                         </strong>
 
                         <strong>
 
-                            ${Number(rendicionSeleccionada.facturacion).toLocaleString("es-UY")}
+                            ${Number(
+                                rendicionSeleccionada.facturacion
+                            ).toLocaleString("es-UY")}
 
                         </strong>
 
