@@ -15,6 +15,7 @@ export default function Header({
   const { usuario } = useUsuario();
 
   const opcionesDueno = [
+    ["dashboard", "📊 Dashboard"],
     ["calendario", "📅 Calendario"],
    // ["recordatorios", "📲 Recordatorios"],
     ["listado", "📋 Turnos"],

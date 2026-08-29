@@ -15,6 +15,8 @@ import { useUsuario } from "./context/UsuarioContext";
 import Rendiciones from "./components/Rendiciones";
 import Servicios from "./components/Servicios";
 import AtencionEspontanea from "./components/AtencionEspontanea";
+import Dashboard from "./components/Dashboard";
+
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -92,7 +94,6 @@ consultaTurnos = consultaTurnos
       supabase
         .from("servicios")
         .select("*")
-        .eq("activo", true)
         .order("orden"),
     
         consultaTurnos,
@@ -398,6 +399,14 @@ const precioTurno = servicioSeleccionado?.precio ?? null;
           </div>
         )}
 
+{vista === "dashboard" && usuario?.rol === "dueno" && (
+  <Dashboard
+    turnos={turnosVisibles}
+    servicios={servicios}
+    profesionales={profesionales}
+  />
+)}
+
 {vista === "calendario" && !turnoSeleccionado && (
 
 <Calendario
@@ -475,7 +484,7 @@ setTurnoSeleccionado={setTurnoSeleccionado}
           form={form}
           setForm={setForm}
 
-          servicios={servicios}
+          servicios={servicios.filter(s => s.activo)}
 
           profesionales={profesionales}
 

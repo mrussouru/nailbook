@@ -39,15 +39,11 @@ export function calcularResumen(
   
   });
   
-        const facturacion = turnosDelPeriodo.reduce((total, turno) => {
+  const facturacion = turnosDelPeriodo.reduce((total, turno) => {
+
+    return total + Number(turno.precio || 0);
   
-          const servicio = servicios.find(
-            s => s.id === turno.servicio
-          );
-  
-          return total + Number(servicio?.precio || 0);
-  
-        }, 0);
+  }, 0);
   
         return {
   
