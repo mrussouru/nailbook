@@ -68,6 +68,17 @@ export default function ReservaPublica() {
 
   const servicioInfo = servicios.find(s => s.id === servicioId)
 
+  const turnosPublicos = useMemo(() => {
+    return ocupados.map((ocupado, index) => ({
+      id: `ocupado-${index}`,
+      fecha,
+      hora: ocupado.hora,
+      estado: "pendiente",
+      profesional_id: ocupado.profesional_id,
+      servicio: ocupado.servicio_id
+    }));
+  }, [ocupados, fecha]);
+
   const disponibilidadHoraria = useMemo(() => {
 
     if (
@@ -93,7 +104,7 @@ export default function ReservaPublica() {
   
       relaciones: relacionesServicios,
   
-      turnos,
+      turnos: turnosPublicos,
   
       servicios
   
@@ -105,7 +116,7 @@ export default function ReservaPublica() {
     profesionalId,
     profesionales,
     relacionesServicios,
-    turnos,
+    turnosPublicos,
     servicios
   ]);
 
