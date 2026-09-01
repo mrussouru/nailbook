@@ -358,7 +358,7 @@ return (
       </Campo>
 
       <Campo label="Tu WhatsApp *">
-        <input value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="Ej: 1122334455" style={inputStyle} />
+        <input value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="Ej: 098544544" style={inputStyle} />
       </Campo>
 
       <Campo label="Nota (opcional)">
