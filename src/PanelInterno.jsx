@@ -173,7 +173,6 @@ consultaTurnos = consultaTurnos
     // CONSULTAR AL MDI
     // ==========================================
   
-    console.log("LICENCIAS PANEL", licencias);
 
     const resultadoMDI = ejecutarMDI({
 
@@ -197,25 +196,6 @@ consultaTurnos = consultaTurnos
   
   });
   
-  console.table(
-  
-      resultadoMDI.historial.map(item => ({
-  
-          Profesional: item.profesional.nombre,
-  
-          Minutos: item.minutos,
-  
-          "Último turno":
-  
-              item.ultimoTurno
-  
-                  ? `${item.ultimoTurno.fecha} ${item.ultimoTurno.hora}`
-  
-                  : "Nunca"
-  
-      }))
-  
-  );
   
   if (!resultadoMDI.disponible) {
 
@@ -228,12 +208,6 @@ consultaTurnos = consultaTurnos
   if (!profesionalId) {
 
     profesionalId = resultadoMDI.profesional.id;
-
-    console.table(resultadoMDI.carga);
-
-    console.log("🚀 MDI NUEVO", resultadoMDI);
-
-    console.log("Motivo:", resultadoMDI.motivo);
 
     if (!resultadoMDI.disponible) {
 

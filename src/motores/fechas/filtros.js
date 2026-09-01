@@ -102,12 +102,6 @@ if (periodo === "personalizado") {
         turno.fecha <= fechaHasta
     );
 
-    console.table(resultado.map(t => ({
-        fecha: t.fecha,
-        cliente: t.cliente,
-        profesional: t.profesional_id
-    })));
-
     return resultado;
 }
 

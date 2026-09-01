@@ -72,7 +72,7 @@ export default function NuevoTurno(props) {
               <input value={form.cliente} onChange={e => setForm({...form, cliente:e.target.value})} placeholder="Ej: Laura Pérez" style={inputStyle} />
             </Campo>
             <Campo label="Teléfono / WhatsApp">
-              <input value={form.telefono} onChange={e => setForm({...form, telefono:e.target.value})} placeholder="Ej: 5491122334455" style={inputStyle} />
+              <input value={form.telefono} onChange={e => setForm({...form, telefono:e.target.value})} placeholder="Ej: 098544544" style={inputStyle} />
             </Campo>
             <Campo label="Fecha *">
               <input type="date" value={form.fecha} onChange={e => setForm({...form, fecha:e.target.value})} style={inputStyle} />
