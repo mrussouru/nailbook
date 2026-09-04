@@ -46,6 +46,7 @@ export default function Header({
   // La opción se habilitará en el menú cuando conectemos
   // la vista "agenda-tamara" en PanelInterno.
   const tamaraDueno = [
+    ["dashboard-tamara", "📊 Mi dashboard"],
     ["agenda-tamara", "📅 Mi agenda"],
     ["clientes-tamara", "👩 Mis clientas"]
   ];

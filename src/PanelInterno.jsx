@@ -19,6 +19,7 @@ import Dashboard from "./components/Dashboard";
 import Clientes from "./components/Clientes";
 import AgendaTamara from "./components/AgendaTamara";
 import ClientesTamara from "./components/ClientesTamara";
+import DashboardTamara from "./components/DashboardTamara";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -494,6 +495,10 @@ setTurnoSeleccionado={setTurnoSeleccionado}
 
           {vista === "clientes" && (
             <Clientes />
+          )}
+
+          {vista === "dashboard-tamara" && usuario?.rol === "dueno" && (
+            <DashboardTamara />
           )}
 
           {vista === "agenda-tamara" && usuario?.rol === "dueno" && (
