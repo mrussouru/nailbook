@@ -42,6 +42,14 @@ export default function Header({
     ["atencion", "🚶 Atención"]
   ];
 
+  // Agenda Tamara.
+  // La opción se habilitará en el menú cuando conectemos
+  // la vista "agenda-tamara" en PanelInterno.
+  const tamaraDueno = [
+    ["agenda-tamara", "📅 Mi agenda"],
+    ["clientes-tamara", "👩 Mis clientas"]
+  ];
+
   const finanzasDueno = [
     ["liquidaciones", "💰 Producción"],
     ["rendiciones", "📋 Rendiciones"]
@@ -280,6 +288,20 @@ export default function Header({
                   ))}
 
                   <div style={tituloSeccionMovil}>
+                    Tamara
+                  </div>
+
+                  {tamaraDueno.map(([v, l]) => (
+                    <button
+                      key={v}
+                      onClick={() => navegar(v)}
+                      style={botonMovil(vista === v)}
+                    >
+                      {l}
+                    </button>
+                  ))}
+
+                  <div style={tituloSeccionMovil}>
                     Finanzas
                   </div>
 
@@ -370,6 +392,12 @@ export default function Header({
                 id="equipo"
                 label="👩‍🎨 Equipo"
                 opciones={equipoDueno}
+              />
+
+              <SubmenuEscritorio
+                id="tamara"
+                label="💇‍♀️ Tamara"
+                opciones={tamaraDueno}
               />
 
               <SubmenuEscritorio

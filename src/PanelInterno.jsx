@@ -17,6 +17,8 @@ import Servicios from "./components/Servicios";
 import AtencionEspontanea from "./components/AtencionEspontanea";
 import Dashboard from "./components/Dashboard";
 import Clientes from "./components/Clientes";
+import AgendaTamara from "./components/AgendaTamara";
+import ClientesTamara from "./components/ClientesTamara";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -492,6 +494,14 @@ setTurnoSeleccionado={setTurnoSeleccionado}
 
           {vista === "clientes" && (
             <Clientes />
+          )}
+
+          {vista === "agenda-tamara" && usuario?.rol === "dueno" && (
+            <AgendaTamara />
+          )}
+
+          {vista === "clientes-tamara" && usuario?.rol === "dueno" && (
+            <ClientesTamara />
           )}
 
           {vista === "servicios" && usuario?.rol === "dueno" && (
