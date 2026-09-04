@@ -8,6 +8,7 @@ export default function DashboardTamara() {
   const [desde, setDesde] = useState(inicioMes);
   const [hasta, setHasta] = useState(hoy);
   const [datos, setDatos] = useState(null);
+  const [rentabilidad, setRentabilidad] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
@@ -21,6 +22,7 @@ export default function DashboardTamara() {
     if (desde > hasta) {
       setError("La fecha desde no puede ser posterior a la fecha hasta.");
       setDatos(null);
+      setRentabilidad(null);
       setCargando(false);
       return;
     }
@@ -28,29 +30,36 @@ export default function DashboardTamara() {
     setCargando(true);
     setError("");
 
-    const { data, error } = await supabase.rpc(
-      "dashboard_tamara",
-      {
+    const [resultadoDashboard, resultadoRentabilidad] = await Promise.all([
+      supabase.rpc("dashboard_tamara", {
         p_desde: desde,
         p_hasta: hasta
-      }
-    );
+      }),
+      supabase.rpc("rentabilidad_tamara", {
+        p_desde: desde,
+        p_hasta: hasta
+      })
+    ]);
 
-    if (error) {
-      console.error("Error cargando dashboard de Tamara:", error);
+    if (resultadoDashboard.error || resultadoRentabilidad.error) {
+      console.error(
+        "Error cargando dashboard de Tamara:",
+        resultadoDashboard.error || resultadoRentabilidad.error
+      );
       setError("No se pudieron cargar las métricas de Tamara.");
       setDatos(null);
+      setRentabilidad(null);
       setCargando(false);
       return;
     }
 
-    setDatos(data?.[0] || null);
+    setDatos(resultadoDashboard.data?.[0] || null);
+    setRentabilidad(resultadoRentabilidad.data?.[0] || null);
     setCargando(false);
   }
 
   function seleccionarEsteMes() {
     const fechaHoy = fechaLocal(new Date());
-
     setDesde(`${fechaHoy.slice(0, 7)}-01`);
     setHasta(fechaHoy);
   }
@@ -84,31 +93,31 @@ export default function DashboardTamara() {
     setHasta(fechaLocal(fechaHasta));
   }
 
-  const facturacion = Number(datos?.facturacion || 0);
+  const facturacion = Number(
+    rentabilidad?.facturacion ?? datos?.facturacion ?? 0
+  );
+  const gastosTotales = Number(rentabilidad?.gastos_totales || 0);
+  const gastosPublicidad = Number(rentabilidad?.gastos_publicidad || 0);
+  const ganancia = Number(rentabilidad?.ganancia || 0);
+  const margen = Number(rentabilidad?.margen_porcentaje || 0);
+
   const atenciones = Number(datos?.atenciones || 0);
   const ticketPromedio = Number(datos?.ticket_promedio || 0);
   const nuevas = Number(datos?.clientas_nuevas || 0);
   const recurrentes = Number(datos?.clientas_recurrentes || 0);
   const ausencias = Number(datos?.ausencias || 0);
-  const valorPerdido = Number(
-    datos?.valor_perdido_ausencias || 0
-  );
+  const valorPerdido = Number(datos?.valor_perdido_ausencias || 0);
 
   const totalClientas = nuevas + recurrentes;
 
   const porcentajeNuevas =
-    totalClientas > 0
-      ? Math.round((nuevas / totalClientas) * 100)
-      : 0;
+    totalClientas > 0 ? Math.round((nuevas / totalClientas) * 100) : 0;
 
   const porcentajeRecurrentes =
-    totalClientas > 0
-      ? Math.round((recurrentes / totalClientas) * 100)
-      : 0;
+    totalClientas > 0 ? Math.round((recurrentes / totalClientas) * 100) : 0;
 
   return (
     <div>
-      {/* ENCABEZADO */}
       <div style={{ marginBottom: 22 }}>
         <h2
           style={{
@@ -127,11 +136,10 @@ export default function DashboardTamara() {
             fontSize: 14
           }}
         >
-          Facturación, clientas y rendimiento de sus atenciones.
+          Facturación, rentabilidad, clientas y rendimiento de sus atenciones.
         </p>
       </div>
 
-      {/* FILTROS */}
       <div
         style={{
           background: "#fff",
@@ -161,14 +169,10 @@ export default function DashboardTamara() {
             marginBottom: 14
           }}
         >
-          <BotonPeriodo onClick={seleccionarEsteMes}>
-            Este mes
-          </BotonPeriodo>
-
+          <BotonPeriodo onClick={seleccionarEsteMes}>Este mes</BotonPeriodo>
           <BotonPeriodo onClick={seleccionarMesAnterior}>
             Mes anterior
           </BotonPeriodo>
-
           <BotonPeriodo onClick={seleccionarUltimos30Dias}>
             Últimos 30 días
           </BotonPeriodo>
@@ -177,26 +181,15 @@ export default function DashboardTamara() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns:
-              "repeat(auto-fit, minmax(180px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
             gap: 12
           }}
         >
-          <CampoFecha
-            label="Desde"
-            value={desde}
-            onChange={setDesde}
-          />
-
-          <CampoFecha
-            label="Hasta"
-            value={hasta}
-            onChange={setHasta}
-          />
+          <CampoFecha label="Desde" value={desde} onChange={setDesde} />
+          <CampoFecha label="Hasta" value={hasta} onChange={setHasta} />
         </div>
       </div>
 
-      {/* ERROR */}
       {error && (
         <div
           style={{
@@ -211,7 +204,6 @@ export default function DashboardTamara() {
         </div>
       )}
 
-      {/* CARGANDO */}
       {cargando && !error && (
         <div
           style={{
@@ -227,14 +219,12 @@ export default function DashboardTamara() {
         </div>
       )}
 
-      {!cargando && !error && datos && (
+      {!cargando && !error && datos && rentabilidad && (
         <>
-          {/* MÉTRICAS PRINCIPALES */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns:
-                "repeat(auto-fit, minmax(210px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
               gap: 12,
               marginBottom: 22
             }}
@@ -248,21 +238,83 @@ export default function DashboardTamara() {
             />
 
             <TarjetaMetrica
-              icono="✂️"
-              titulo="Atenciones"
-              valor={atenciones}
-              detalle="Atenciones completadas"
+              icono="💸"
+              titulo="Gastos"
+              valor={`$${dinero(gastosTotales)}`}
+              detalle="Gastos registrados en el período"
             />
 
             <TarjetaMetrica
-              icono="🎟️"
-              titulo="Ticket promedio"
-              valor={`$${dinero(ticketPromedio)}`}
-              detalle="Promedio cobrado por atención"
+              icono="📈"
+              titulo="Ganancia"
+              valor={`$${dinero(ganancia)}`}
+              detalle="Facturación menos gastos"
+            />
+
+            <TarjetaMetrica
+              icono="📊"
+              titulo="Margen"
+              valor={`${numero(margen)}%`}
+              detalle="Ganancia sobre facturación"
             />
           </div>
 
-          {/* CLIENTAS */}
+          <div
+            style={{
+              background: "#fff",
+              border: "1px solid #f0d9e8",
+              borderRadius: 16,
+              padding: 18,
+              marginBottom: 18
+            }}
+          >
+            <h3
+              style={{
+                margin: "0 0 4px",
+                color: "#cc2674",
+                fontSize: 18
+              }}
+            >
+              💼 Operación
+            </h3>
+
+            <p
+              style={{
+                margin: "0 0 16px",
+                color: "#999",
+                fontSize: 12
+              }}
+            >
+              Producción, ticket y gasto en adquisición.
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: 12
+              }}
+            >
+              <TarjetaSecundaria
+                titulo="Atenciones"
+                valor={atenciones}
+                detalle="Atenciones completadas"
+              />
+
+              <TarjetaSecundaria
+                titulo="Ticket promedio"
+                valor={`$${dinero(ticketPromedio)}`}
+                detalle="Promedio cobrado por atención"
+              />
+
+              <TarjetaSecundaria
+                titulo="Publicidad"
+                valor={`$${dinero(gastosPublicidad)}`}
+                detalle="Gasto registrado como Publicidad"
+              />
+            </div>
+          </div>
+
           <div
             style={{
               background: "#fff",
@@ -295,8 +347,7 @@ export default function DashboardTamara() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(180px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                 gap: 12
               }}
             >
@@ -328,7 +379,6 @@ export default function DashboardTamara() {
             </div>
           </div>
 
-          {/* AUSENCIAS */}
           <div
             style={{
               background: "#fff",
@@ -360,8 +410,7 @@ export default function DashboardTamara() {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns:
-                  "repeat(auto-fit, minmax(180px, 1fr))",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                 gap: 12
               }}
             >
@@ -399,9 +448,7 @@ function TarjetaMetrica({
     <div
       style={{
         background: destacada ? "#cc2674" : "#fff",
-        border: destacada
-          ? "1px solid #cc2674"
-          : "1px solid #f0d9e8",
+        border: destacada ? "1px solid #cc2674" : "1px solid #f0d9e8",
         borderRadius: 16,
         padding: 18,
         minHeight: 115
@@ -444,9 +491,7 @@ function TarjetaMetrica({
       <div
         style={{
           fontSize: 11,
-          color: destacada
-            ? "rgba(255,255,255,.8)"
-            : "#999"
+          color: destacada ? "rgba(255,255,255,.8)" : "#999"
         }}
       >
         {detalle}
@@ -487,14 +532,7 @@ function TarjetaSecundaria({ titulo, valor, detalle }) {
         {valor}
       </div>
 
-      <div
-        style={{
-          color: "#999",
-          fontSize: 11
-        }}
-      >
-        {detalle}
-      </div>
+      <div style={{ color: "#999", fontSize: 11 }}>{detalle}</div>
     </div>
   );
 }
@@ -557,6 +595,13 @@ function BotonPeriodo({ children, onClick }) {
 function dinero(valor) {
   return new Intl.NumberFormat("es-UY", {
     maximumFractionDigits: 0
+  }).format(Number(valor || 0));
+}
+
+function numero(valor) {
+  return new Intl.NumberFormat("es-UY", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2
   }).format(Number(valor || 0));
 }
 

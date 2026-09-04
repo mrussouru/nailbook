@@ -48,7 +48,8 @@ export default function Header({
   const tamaraDueno = [
     ["dashboard-tamara", "📊 Mi dashboard"],
     ["agenda-tamara", "📅 Mi agenda"],
-    ["clientes-tamara", "👩 Mis clientas"]
+    ["clientes-tamara", "👩 Mis clientas"],
+    ["gastos-tamara", "💸 Gastos"]
   ];
 
   const finanzasDueno = [
