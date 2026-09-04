@@ -18,7 +18,35 @@ export default function NuevoTurno(props) {
     relacionesServicios,
     turnos,
     horarios,
+    usuario,
   } = props;
+
+  const esProfesional = usuario?.rol === "profesional";
+
+const serviciosDisponibles = servicios.filter(servicio => {
+
+  // Si es profesional, solamente sus servicios asignados
+  if (esProfesional) {
+    return relacionesServicios.some(
+      relacion =>
+        relacion.profesional_id === usuario?.profesional_id &&
+        relacion.servicio_id === servicio.id
+    );
+  }
+
+  // Si es dueño, solamente servicios que tenga
+  // al menos una profesional activa asignada
+  return relacionesServicios.some(
+    relacion =>
+      relacion.servicio_id === servicio.id &&
+      profesionales.some(
+        profesional =>
+          profesional.id === relacion.profesional_id &&
+          profesional.activa
+      )
+  );
+
+});
 
   const disponibilidadHoraria = useMemo(() => {
 
@@ -103,7 +131,11 @@ export default function NuevoTurno(props) {
             </Campo>
             <Campo label="Servicio *">
               <select value={form.servicio} onChange={e => setForm({...form, servicio:e.target.value})} style={inputStyle}>
-                {servicios.map(s => <option key={s.id} value={s.id}>{s.nombre} · {s.duracion} min · ${Number(s.precio).toLocaleString('es-AR')}</option>)}
+              {serviciosDisponibles.map(s => (
+  <option key={s.id} value={s.id}>
+    {s.nombre} · {s.duracion} min · ${Number(s.precio).toLocaleString('es-AR')}
+  </option>
+))}
               </select>
             </Campo>
             <Campo label={`Horario * ${servicioInfo(form.servicio) ? `(${servicioInfo(form.servicio).nombre} dura ${servicioInfo(form.servicio).duracion} min)` : ''}`}>

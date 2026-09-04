@@ -16,7 +16,7 @@ import Rendiciones from "./components/Rendiciones";
 import Servicios from "./components/Servicios";
 import AtencionEspontanea from "./components/AtencionEspontanea";
 import Dashboard from "./components/Dashboard";
-
+import Clientes from "./components/Clientes";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -480,6 +480,8 @@ setTurnoSeleccionado={setTurnoSeleccionado}
 
           relacionesServicios={relacionesServicios}
 
+          usuario={usuario}
+
           />
 
           )}
@@ -487,6 +489,10 @@ setTurnoSeleccionado={setTurnoSeleccionado}
           {vista === "profesionales" && (
             <Profesionales />
           )} 
+
+          {vista === "clientes" && (
+            <Clientes />
+          )}
 
           {vista === "servicios" && usuario?.rol === "dueno" && (
             <Servicios

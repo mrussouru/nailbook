@@ -68,6 +68,17 @@ export default function ReservaPublica() {
 
   const servicioInfo = servicios.find(s => s.id === servicioId)
 
+  const serviciosDisponibles = servicios.filter(servicio =>
+    relacionesServicios.some(relacion =>
+      relacion.servicio_id === servicio.id &&
+      profesionales.some(
+        profesional =>
+          profesional.id === relacion.profesional_id &&
+          profesional.activa
+      )
+    )
+  );
+
   const turnosPublicos = useMemo(() => {
     return ocupados.map((ocupado, index) => ({
       id: `ocupado-${index}`,
@@ -224,9 +235,11 @@ export default function ReservaPublica() {
       {/* Servicio */}
       <Campo label="Servicio *">
         <select value={servicioId} onChange={e => { setServicioId(e.target.value); setHora('') }} style={inputStyle}>
-          {servicios.map(s => (
-            <option key={s.id} value={s.id}>{s.nombre} · {s.duracion} min · ${Number(s.precio).toLocaleString('es-AR')}</option>
-          ))}
+        {serviciosDisponibles.map(s => (
+  <option key={s.id} value={s.id}>
+    {s.nombre} · {s.duracion} min · ${Number(s.precio).toLocaleString('es-AR')}
+  </option>
+))}
         </select>
       </Campo>
       <Campo label="Profesional">

@@ -11,7 +11,9 @@ export default function Servicios({ onServiciosActualizados }) {
     nombre: "",
     duracion: "",
     precio: "",
-    categoria: ""
+    categoria: "",
+    seguimiento_activo: false,
+    dias_seguimiento: ""
   });
 
   const [editandoId, setEditandoId] = useState(null);
@@ -20,12 +22,16 @@ export default function Servicios({ onServiciosActualizados }) {
     nombre: "",
     duracion: "",
     precio: "",
-    categoria: ""
+    categoria: "",
+    seguimiento_activo: false,
+    dias_seguimiento: ""
   });
+
 
   useEffect(() => {
     cargarServicios();
   }, []);
+
 
   async function cargarServicios() {
 
@@ -47,7 +53,9 @@ export default function Servicios({ onServiciosActualizados }) {
     setCargando(false);
   }
 
+
   function generarId(nombre) {
+
     return nombre
       .toLowerCase()
       .normalize("NFD")
@@ -55,7 +63,29 @@ export default function Servicios({ onServiciosActualizados }) {
       .trim()
       .replace(/\s+/g, "_")
       .replace(/[^a-z0-9_]/g, "");
+
   }
+
+
+  function validarSeguimiento(servicio) {
+
+    if (
+      servicio.seguimiento_activo &&
+      (
+        !servicio.dias_seguimiento ||
+        Number(servicio.dias_seguimiento) <= 0
+      )
+    ) {
+      alert(
+        "Si activás el seguimiento, indicá después de cuántos días corresponde."
+      );
+
+      return false;
+    }
+
+    return true;
+  }
+
 
   async function guardarNuevoServicio() {
 
@@ -65,6 +95,10 @@ export default function Servicios({ onServiciosActualizados }) {
       !nuevoServicio.precio
     ) {
       alert("Completá nombre, duración y precio.");
+      return;
+    }
+
+    if (!validarSeguimiento(nuevoServicio)) {
       return;
     }
 
@@ -89,7 +123,15 @@ export default function Servicios({ onServiciosActualizados }) {
         precio: Number(nuevoServicio.precio),
         activo: true,
         orden: siguienteOrden,
-        categoria: nuevoServicio.categoria.trim() || null
+        categoria: nuevoServicio.categoria.trim() || null,
+
+        seguimiento_activo:
+          nuevoServicio.seguimiento_activo,
+
+        dias_seguimiento:
+          nuevoServicio.seguimiento_activo
+            ? Number(nuevoServicio.dias_seguimiento)
+            : null
       });
 
     if (error) {
@@ -97,7 +139,9 @@ export default function Servicios({ onServiciosActualizados }) {
       console.error(error);
 
       if (error.code === "23505") {
-        alert("Ya existe un servicio con ese nombre o identificador.");
+        alert(
+          "Ya existe un servicio con ese nombre o identificador."
+        );
       } else {
         alert("Error al guardar el servicio.");
       }
@@ -106,19 +150,22 @@ export default function Servicios({ onServiciosActualizados }) {
     }
 
     await cargarServicios();
-await onServiciosActualizados?.();
+    await onServiciosActualizados?.();
 
-setNuevoServicio({
+    setNuevoServicio({
       nombre: "",
       duracion: "",
       precio: "",
-      categoria: ""
+      categoria: "",
+      seguimiento_activo: false,
+      dias_seguimiento: ""
     });
 
     setMostrarFormulario(false);
 
     alert("✅ Servicio creado correctamente");
   }
+
 
   async function cambiarEstadoServicio(servicio) {
 
@@ -144,8 +191,9 @@ setNuevoServicio({
     }
 
     await cargarServicios();
-await onServiciosActualizados?.();
+    await onServiciosActualizados?.();
   }
+
 
   function comenzarEdicion(servicio) {
 
@@ -155,9 +203,17 @@ await onServiciosActualizados?.();
       nombre: servicio.nombre,
       duracion: servicio.duracion,
       precio: servicio.precio,
-      categoria: servicio.categoria || ""
+      categoria: servicio.categoria || "",
+
+      seguimiento_activo:
+        Boolean(servicio.seguimiento_activo),
+
+      dias_seguimiento:
+        servicio.dias_seguimiento || ""
     });
+
   }
+
 
   async function guardarEdicion(servicio) {
 
@@ -170,13 +226,26 @@ await onServiciosActualizados?.();
       return;
     }
 
+    if (!validarSeguimiento(servicioEditado)) {
+      return;
+    }
+
     const { error } = await supabase
       .from("servicios")
       .update({
         nombre: servicioEditado.nombre.trim(),
         duracion: Number(servicioEditado.duracion),
         precio: Number(servicioEditado.precio),
-        categoria: servicioEditado.categoria.trim() || null
+        categoria:
+          servicioEditado.categoria.trim() || null,
+
+        seguimiento_activo:
+          servicioEditado.seguimiento_activo,
+
+        dias_seguimiento:
+          servicioEditado.seguimiento_activo
+            ? Number(servicioEditado.dias_seguimiento)
+            : null
       })
       .eq("id", servicio.id);
 
@@ -187,12 +256,13 @@ await onServiciosActualizados?.();
     }
 
     await cargarServicios();
-await onServiciosActualizados?.();
+    await onServiciosActualizados?.();
 
-setEditandoId(null);
+    setEditandoId(null);
 
     alert("✅ Servicio actualizado correctamente");
   }
+
 
   return (
 
@@ -208,6 +278,7 @@ setEditandoId(null);
         💅 Servicios
       </h2>
 
+
       <div
         style={{
           background: "#fff",
@@ -217,10 +288,13 @@ setEditandoId(null);
         }}
       >
 
+
         {/* BOTÓN NUEVO SERVICIO */}
 
         <button
-          onClick={() => setMostrarFormulario(!mostrarFormulario)}
+          onClick={() =>
+            setMostrarFormulario(!mostrarFormulario)
+          }
           style={{
             marginBottom: 20,
             padding: "10px 18px",
@@ -262,13 +336,9 @@ setEditandoId(null);
                   nombre: e.target.value
                 })
               }
-              style={{
-                width: "100%",
-                padding: 10,
-                marginBottom: 10,
-                boxSizing: "border-box"
-              }}
+              style={inputStyle}
             />
+
 
             <input
               type="number"
@@ -281,13 +351,9 @@ setEditandoId(null);
                   duracion: e.target.value
                 })
               }
-              style={{
-                width: "100%",
-                padding: 10,
-                marginBottom: 10,
-                boxSizing: "border-box"
-              }}
+              style={inputStyle}
             />
+
 
             <input
               type="number"
@@ -301,13 +367,9 @@ setEditandoId(null);
                   precio: e.target.value
                 })
               }
-              style={{
-                width: "100%",
-                padding: 10,
-                marginBottom: 10,
-                boxSizing: "border-box"
-              }}
+              style={inputStyle}
             />
+
 
             <input
               type="text"
@@ -319,13 +381,110 @@ setEditandoId(null);
                   categoria: e.target.value
                 })
               }
-              style={{
-                width: "100%",
-                padding: 10,
-                marginBottom: 15,
-                boxSizing: "border-box"
-              }}
+              style={inputStyle}
             />
+
+
+            {/* SEGUIMIENTO */}
+
+            <div style={seguimientoStyle}>
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                  fontWeight: 700,
+                  color: "#555"
+                }}
+              >
+
+                <input
+                  type="checkbox"
+                  checked={
+                    nuevoServicio.seguimiento_activo
+                  }
+                  onChange={e =>
+                    setNuevoServicio({
+                      ...nuevoServicio,
+                      seguimiento_activo:
+                        e.target.checked,
+
+                      dias_seguimiento:
+                        e.target.checked
+                          ? nuevoServicio.dias_seguimiento
+                          : ""
+                    })
+                  }
+                />
+
+                🔔 Seguimiento de mantenimiento
+
+              </label>
+
+
+              {nuevoServicio.seguimiento_activo && (
+
+                <div style={{ marginTop: 12 }}>
+
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: "#777",
+                      marginBottom: 6
+                    }}
+                  >
+                    Contactar después de:
+                  </div>
+
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8
+                    }}
+                  >
+
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Ej: 21"
+                      value={
+                        nuevoServicio.dias_seguimiento
+                      }
+                      onChange={e =>
+                        setNuevoServicio({
+                          ...nuevoServicio,
+                          dias_seguimiento:
+                            e.target.value
+                        })
+                      }
+                      style={{
+                        width: 100,
+                        padding: 9,
+                        borderRadius: 8,
+                        border: "1px solid #ddd"
+                      }}
+                    />
+
+                    <span
+                      style={{
+                        fontSize: 13,
+                        color: "#666"
+                      }}
+                    >
+                      días
+                    </span>
+
+                  </div>
+
+                </div>
+
+              )}
+
+            </div>
+
 
             <button
               onClick={guardarNuevoServicio}
@@ -361,7 +520,7 @@ setEditandoId(null);
         )}
 
 
-        {/* LISTADO DE SERVICIOS */}
+        {/* LISTADO */}
 
         {!cargando && servicios.map(servicio => (
 
@@ -375,8 +534,6 @@ setEditandoId(null);
             }}
           >
 
-            {/* NOMBRE */}
-
             <div
               style={{
                 fontSize: 17,
@@ -388,8 +545,6 @@ setEditandoId(null);
             </div>
 
 
-            {/* DURACIÓN Y PRECIO */}
-
             <div
               style={{
                 marginTop: 6,
@@ -399,8 +554,6 @@ setEditandoId(null);
               {servicio.duracion} min · ${servicio.precio}
             </div>
 
-
-            {/* ESTADO */}
 
             <div
               style={{
@@ -414,10 +567,30 @@ setEditandoId(null);
             </div>
 
 
-            {/* BOTÓN EDITAR */}
+            {/* ESTADO SEGUIMIENTO */}
+
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 13,
+                color: servicio.seguimiento_activo
+                  ? "#b05080"
+                  : "#999",
+                fontWeight: 700
+              }}
+            >
+              {servicio.seguimiento_activo
+                ? `🔔 Seguimiento: ${servicio.dias_seguimiento} días`
+                : "🔕 Sin seguimiento"}
+            </div>
+
+
+            {/* EDITAR */}
 
             <button
-              onClick={() => comenzarEdicion(servicio)}
+              onClick={() =>
+                comenzarEdicion(servicio)
+              }
               style={{
                 marginTop: 10,
                 marginRight: 8,
@@ -434,10 +607,12 @@ setEditandoId(null);
             </button>
 
 
-            {/* BOTÓN ACTIVAR / DESACTIVAR */}
+            {/* ACTIVAR / DESACTIVAR */}
 
             <button
-              onClick={() => cambiarEstadoServicio(servicio)}
+              onClick={() =>
+                cambiarEstadoServicio(servicio)
+              }
               style={{
                 marginTop: 10,
                 padding: "7px 12px",
@@ -457,7 +632,7 @@ setEditandoId(null);
             </button>
 
 
-            {/* FORMULARIO EDITAR SERVICIO - PASO 5 */}
+            {/* FORMULARIO EDITAR */}
 
             {editandoId === servicio.id && (
 
@@ -478,13 +653,9 @@ setEditandoId(null);
                       nombre: e.target.value
                     })
                   }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    marginBottom: 8,
-                    boxSizing: "border-box"
-                  }}
+                  style={inputStyle}
                 />
+
 
                 <input
                   type="number"
@@ -496,13 +667,9 @@ setEditandoId(null);
                       duracion: e.target.value
                     })
                   }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    marginBottom: 8,
-                    boxSizing: "border-box"
-                  }}
+                  style={inputStyle}
                 />
+
 
                 <input
                   type="number"
@@ -514,13 +681,9 @@ setEditandoId(null);
                       precio: e.target.value
                     })
                   }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    marginBottom: 8,
-                    boxSizing: "border-box"
-                  }}
+                  style={inputStyle}
                 />
+
 
                 <input
                   type="text"
@@ -532,16 +695,116 @@ setEditandoId(null);
                       categoria: e.target.value
                     })
                   }
-                  style={{
-                    width: "100%",
-                    padding: 8,
-                    marginBottom: 10,
-                    boxSizing: "border-box"
-                  }}
+                  style={inputStyle}
                 />
 
+
+                {/* SEGUIMIENTO EDITAR */}
+
+                <div style={seguimientoStyle}>
+
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                      fontWeight: 700,
+                      color: "#555"
+                    }}
+                  >
+
+                    <input
+                      type="checkbox"
+                      checked={
+                        servicioEditado.seguimiento_activo
+                      }
+                      onChange={e =>
+                        setServicioEditado({
+                          ...servicioEditado,
+
+                          seguimiento_activo:
+                            e.target.checked,
+
+                          dias_seguimiento:
+                            e.target.checked
+                              ? servicioEditado.dias_seguimiento
+                              : ""
+                        })
+                      }
+                    />
+
+                    🔔 Seguimiento de mantenimiento
+
+                  </label>
+
+
+                  {servicioEditado.seguimiento_activo && (
+
+                    <div style={{ marginTop: 12 }}>
+
+                      <div
+                        style={{
+                          fontSize: 12,
+                          color: "#777",
+                          marginBottom: 6
+                        }}
+                      >
+                        Contactar después de:
+                      </div>
+
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8
+                        }}
+                      >
+
+                        <input
+                          type="number"
+                          min="1"
+                          placeholder="Ej: 21"
+                          value={
+                            servicioEditado.dias_seguimiento
+                          }
+                          onChange={e =>
+                            setServicioEditado({
+                              ...servicioEditado,
+                              dias_seguimiento:
+                                e.target.value
+                            })
+                          }
+                          style={{
+                            width: 100,
+                            padding: 9,
+                            borderRadius: 8,
+                            border: "1px solid #ddd"
+                          }}
+                        />
+
+                        <span
+                          style={{
+                            fontSize: 13,
+                            color: "#666"
+                          }}
+                        >
+                          días
+                        </span>
+
+                      </div>
+
+                    </div>
+
+                  )}
+
+                </div>
+
+
                 <button
-                  onClick={() => guardarEdicion(servicio)}
+                  onClick={() =>
+                    guardarEdicion(servicio)
+                  }
                   style={{
                     padding: "8px 12px",
                     marginRight: 8,
@@ -556,8 +819,11 @@ setEditandoId(null);
                   💾 Guardar cambios
                 </button>
 
+
                 <button
-                  onClick={() => setEditandoId(null)}
+                  onClick={() =>
+                    setEditandoId(null)
+                  }
                   style={{
                     padding: "8px 12px",
                     border: "1px solid #ddd",
@@ -573,8 +839,6 @@ setEditandoId(null);
 
             )}
 
-            {/* FIN FORMULARIO EDITAR */}
-
           </div>
 
         ))}
@@ -585,3 +849,22 @@ setEditandoId(null);
 
   );
 }
+
+
+/* ESTILOS */
+
+const inputStyle = {
+  width: "100%",
+  padding: 10,
+  marginBottom: 10,
+  boxSizing: "border-box"
+};
+
+
+const seguimientoStyle = {
+  padding: 14,
+  marginBottom: 15,
+  borderRadius: 10,
+  background: "#fdf6f8",
+  border: "1px solid #f0d9e8"
+};

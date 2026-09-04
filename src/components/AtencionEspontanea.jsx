@@ -27,7 +27,21 @@ export default function AtencionEspontanea({
       )
     : null;
 
-  const serviciosDisponibles = servicios.filter(s => s.activo);
+    const serviciosDisponibles = servicios.filter(servicio => {
+      if (!servicio.activo) return false;
+    
+      // El dueño puede ver todos los servicios activos.
+      // Después se filtran las profesionales que pueden realizarlos.
+      if (!esProfesional) return true;
+    
+      // Una profesional solo puede elegir servicios
+      // que tenga asignados.
+      return relacionesServicios.some(
+        relacion =>
+          relacion.profesional_id === usuario?.profesional_id &&
+          relacion.servicio_id === servicio.id
+      );
+    });
 
   const profesionalesDisponibles = form.servicio
     ? profesionales.filter(profesional =>

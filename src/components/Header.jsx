@@ -19,6 +19,7 @@ export default function Header({
     ["calendario", "📅 Calendario"],
    // ["recordatorios", "📲 Recordatorios"],
     ["listado", "📋 Turnos"],
+    ["clientes", "👥 Clientes"],
     ["nuevo", "➕ Nuevo turno"],
     ["profesionales", "👩‍🎨 Profesionales"],
     ["servicios", "💅 Servicios"],
