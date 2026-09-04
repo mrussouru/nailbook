@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useUsuario } from "../context/UsuarioContext";
 import { esDueno, esProfesional } from "../motores/auth";
 
@@ -11,23 +12,44 @@ export default function Header({
   setTurnoSeleccionado,
   salir
 }) {
-
   const { usuario } = useUsuario();
 
-  const opcionesDueno = [
+  const [submenuAbierto, setSubmenuAbierto] = useState(null);
+
+  const navegar = (nuevaVista) => {
+    setVista(nuevaVista);
+    setTurnoSeleccionado(null);
+    setMenuAbierto(false);
+    setSubmenuAbierto(null);
+  };
+
+  // =========================
+  // MENÚ DUEÑO
+  // =========================
+
+  const accesosPrincipalesDueno = [
     ["dashboard", "📊 Dashboard"],
     ["calendario", "📅 Calendario"],
-   // ["recordatorios", "📲 Recordatorios"],
     ["listado", "📋 Turnos"],
     ["clientes", "👥 Clientes"],
-    ["nuevo", "➕ Nuevo turno"],
+    ["nuevo", "➕ Nuevo turno"]
+  ];
+
+  const equipoDueno = [
     ["profesionales", "👩‍🎨 Profesionales"],
     ["servicios", "💅 Servicios"],
-    ["atencion", "🚶 Atención"],
-    ["liquidaciones", "💰 Producción"],
     ["disponibilidad", "🗓 Disponibilidad"],
+    ["atencion", "🚶 Atención"]
+  ];
+
+  const finanzasDueno = [
+    ["liquidaciones", "💰 Producción"],
     ["rendiciones", "📋 Rendiciones"]
   ];
+
+  // =========================
+  // MENÚ PROFESIONAL
+  // =========================
 
   const opcionesProfesional = [
     ["calendario", "📅 Mi agenda"],
@@ -37,95 +59,267 @@ export default function Header({
     ["rendiciones", "📋 Mis rendiciones"]
   ];
 
-  const opciones = esDueno(usuario)
-    ? opcionesDueno
-    : esProfesional(usuario)
-      ? opcionesProfesional
-      : [];
+  const opcionActiva = (opciones) =>
+    opciones.some(([v]) => v === vista);
+
+  // =========================
+  // ESTILOS
+  // =========================
+
+  const botonPrincipal = (activo = false) => ({
+    padding: "8px 12px",
+    borderRadius: 20,
+    border: "none",
+    cursor: "pointer",
+    fontWeight: 600,
+    fontSize: 13,
+    background: activo ? "#b05080" : "transparent",
+    color: activo ? "#fff" : "#b05080",
+    whiteSpace: "nowrap"
+  });
+
+  const botonSubmenu = {
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: "11px 14px",
+    border: "none",
+    background: "#fff",
+    cursor: "pointer",
+    color: "#b05080",
+    fontWeight: 600,
+    fontSize: 13,
+    whiteSpace: "nowrap"
+  };
+
+  const submenuStyle = {
+    position: "absolute",
+    top: "calc(100% + 8px)",
+    right: 0,
+    background: "#fff",
+    border: "1px solid #f0d9e8",
+    borderRadius: 12,
+    boxShadow: "0 8px 25px rgba(0,0,0,.12)",
+    overflow: "hidden",
+    zIndex: 2000,
+    minWidth: 205
+  };
+
+  const tituloSeccionMovil = {
+    padding: "12px 18px 6px",
+    fontSize: 11,
+    fontWeight: 800,
+    color: "#999",
+    textTransform: "uppercase",
+    letterSpacing: ".7px"
+  };
+
+  const botonMovil = (activo = false) => ({
+    display: "block",
+    width: "100%",
+    textAlign: "left",
+    padding: "12px 18px",
+    border: "none",
+    background: activo ? "#fdf2f8" : "#fff",
+    cursor: "pointer",
+    color: "#b05080",
+    fontWeight: 600
+  });
+
+  // =========================
+  // SUBMENÚ ESCRITORIO
+  // =========================
+
+  const SubmenuEscritorio = ({
+    id,
+    label,
+    opciones
+  }) => {
+    const abierto = submenuAbierto === id;
+    const activo = opcionActiva(opciones);
+
+    return (
+      <div
+        style={{
+          position: "relative"
+        }}
+      >
+        <button
+          onClick={() =>
+            setSubmenuAbierto(abierto ? null : id)
+          }
+          style={botonPrincipal(activo)}
+        >
+          {label} ▾
+        </button>
+
+        {abierto && (
+          <div style={submenuStyle}>
+            {opciones.map(([v, l]) => (
+              <button
+                key={v}
+                onClick={() => navegar(v)}
+                style={{
+                  ...botonSubmenu,
+                  background:
+                    vista === v ? "#fdf2f8" : "#fff"
+                }}
+                onMouseEnter={(e) => {
+                  if (vista !== v) {
+                    e.currentTarget.style.background =
+                      "#fff7fb";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (vista !== v) {
+                    e.currentTarget.style.background =
+                      "#fff";
+                  }
+                }}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <header
       style={{
         background: "#fff",
         borderBottom: "2px solid #f0d9e8",
-        padding: esMovil ? "10px 16px" : "0 32px",
+        padding: esMovil ? "10px 16px" : "0 24px",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
+        gap: 20,
         minHeight: esMovil ? 70 : 72,
         position: "relative"
       }}
     >
+      {/* LOGO */}
 
       <img
         src={logo}
         alt="Tamy Ayelen"
         style={{
-          width: esMovil ? 85 : 150,
-          height: "auto"
+          width: esMovil ? 85 : 135,
+          height: "auto",
+          flexShrink: 0
         }}
       />
 
-      {esMovil ? (
+      {/* =========================
+          MÓVIL
+      ========================= */}
 
+      {esMovil ? (
         <>
           <button
             onClick={() => setMenuAbierto(!menuAbierto)}
+            aria-label="Abrir menú"
             style={{
               fontSize: 28,
               border: "none",
               background: "transparent",
               cursor: "pointer",
-              color: "#b05080"
+              color: "#b05080",
+              padding: 6
             }}
           >
-            ☰
+            {menuAbierto ? "✕" : "☰"}
           </button>
 
           {menuAbierto && (
-
             <div
               style={{
                 position: "absolute",
-                top: 70,
+                top: "100%",
+                left: 10,
                 right: 10,
+                maxHeight: "calc(100vh - 90px)",
+                overflowY: "auto",
                 background: "#fff",
                 border: "1px solid #f0d9e8",
-                borderRadius: 12,
+                borderRadius: 14,
                 boxShadow: "0 8px 25px rgba(0,0,0,.12)",
-                overflow: "hidden",
-                zIndex: 1000,
-                minWidth: 220
+                zIndex: 2000
               }}
             >
+              {esDueno(usuario) && (
+                <>
+                  <div style={tituloSeccionMovil}>
+                    Principal
+                  </div>
 
-              {opciones.map(([v, l]) => (
+                  {accesosPrincipalesDueno.map(([v, l]) => (
+                    <button
+                      key={v}
+                      onClick={() => navegar(v)}
+                      style={botonMovil(vista === v)}
+                    >
+                      {l}
+                    </button>
+                  ))}
 
-                <button
-                  key={v}
-                  onClick={() => {
-                    setVista(v);
-                    setTurnoSeleccionado(null);
-                    setMenuAbierto(false);
-                  }}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    padding: "14px 18px",
-                    border: "none",
-                    background: vista === v ? "#fdf2f8" : "#fff",
-                    cursor: "pointer",
-                    color: "#b05080",
-                    fontWeight: 600
-                  }}
-                >
-                  {l}
-                </button>
+                  <div style={tituloSeccionMovil}>
+                    Equipo
+                  </div>
 
-              ))}
+                  {equipoDueno.map(([v, l]) => (
+                    <button
+                      key={v}
+                      onClick={() => navegar(v)}
+                      style={botonMovil(vista === v)}
+                    >
+                      {l}
+                    </button>
+                  ))}
 
-              <hr style={{ margin: 0 }} />
+                  <div style={tituloSeccionMovil}>
+                    Finanzas
+                  </div>
+
+                  {finanzasDueno.map(([v, l]) => (
+                    <button
+                      key={v}
+                      onClick={() => navegar(v)}
+                      style={botonMovil(vista === v)}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </>
+              )}
+
+              {esProfesional(usuario) && (
+                <>
+                  <div style={tituloSeccionMovil}>
+                    Mi espacio
+                  </div>
+
+                  {opcionesProfesional.map(([v, l]) => (
+                    <button
+                      key={v}
+                      onClick={() => navegar(v)}
+                      style={botonMovil(vista === v)}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </>
+              )}
+
+              <div
+                style={{
+                  height: 1,
+                  background: "#f0d9e8",
+                  marginTop: 8
+                }}
+              />
 
               <button
                 onClick={salir}
@@ -137,70 +331,82 @@ export default function Header({
                   border: "none",
                   background: "#fff",
                   cursor: "pointer",
-                  color: "#777"
+                  color: "#777",
+                  fontWeight: 600
                 }}
               >
-                Salir
+                🚪 Salir
               </button>
-
             </div>
-
           )}
-
         </>
-
       ) : (
+        /* =========================
+           ESCRITORIO
+        ========================= */
 
         <nav
           style={{
             display: "flex",
-            gap: 6
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 4,
+            flex: 1
           }}
         >
+          {esDueno(usuario) && (
+            <>
+              {accesosPrincipalesDueno.map(([v, l]) => (
+                <button
+                  key={v}
+                  onClick={() => navegar(v)}
+                  style={botonPrincipal(vista === v)}
+                >
+                  {l}
+                </button>
+              ))}
 
-          {opciones.map(([v, l]) => (
+              <SubmenuEscritorio
+                id="equipo"
+                label="👩‍🎨 Equipo"
+                opciones={equipoDueno}
+              />
 
-            <button
-              key={v}
-              onClick={() => {
-                setVista(v);
-                setTurnoSeleccionado(null);
-              }}
-              style={{
-                padding: "7px 14px",
-                borderRadius: 20,
-                border: "none",
-                cursor: "pointer",
-                fontWeight: 600,
-                fontSize: 13,
-                background: vista === v ? "#b05080" : "transparent",
-                color: vista === v ? "#fff" : "#b05080"
-              }}
-            >
-              {l}
-            </button>
+              <SubmenuEscritorio
+                id="finanzas"
+                label="💰 Finanzas"
+                opciones={finanzasDueno}
+              />
+            </>
+          )}
 
-          ))}
+          {esProfesional(usuario) &&
+            opcionesProfesional.map(([v, l]) => (
+              <button
+                key={v}
+                onClick={() => navegar(v)}
+                style={botonPrincipal(vista === v)}
+              >
+                {l}
+              </button>
+            ))}
 
           <button
             onClick={salir}
             style={{
-              padding: "7px 14px",
+              padding: "8px 12px",
               borderRadius: 20,
               border: "none",
               background: "transparent",
               cursor: "pointer",
-              color: "#888"
+              color: "#888",
+              whiteSpace: "nowrap"
             }}
           >
             Salir
           </button>
-
         </nav>
-
       )}
-
     </header>
   );
-
 }

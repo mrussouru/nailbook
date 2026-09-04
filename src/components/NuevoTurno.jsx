@@ -1,6 +1,6 @@
 import { HORARIOS } from "../helpers";
 import { obtenerDisponibilidadHoraria } from "../motores/MDI/disponibilidadHoraria";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 export default function NuevoTurno(props) {
 
@@ -23,7 +23,7 @@ export default function NuevoTurno(props) {
 
   const esProfesional = usuario?.rol === "profesional";
 
-const serviciosDisponibles = servicios.filter(servicio => {
+  const serviciosDisponibles = useMemo(() => servicios.filter(servicio => {
 
   // Si es profesional, solamente sus servicios asignados
   if (esProfesional) {
@@ -46,7 +46,33 @@ const serviciosDisponibles = servicios.filter(servicio => {
       )
   );
 
-});
+}), [
+  servicios,
+  relacionesServicios,
+  profesionales,
+  esProfesional,
+  usuario?.profesional_id
+]);
+
+useEffect(() => {
+  if (serviciosDisponibles.length === 0) return;
+
+  const servicioActualEsValido = serviciosDisponibles.some(
+    servicio => servicio.id === form.servicio
+  );
+
+  if (!servicioActualEsValido) {
+    setForm(formActual => ({
+      ...formActual,
+      servicio: serviciosDisponibles[0].id,
+      hora: ""
+    }));
+  }
+}, [
+  form.servicio,
+  serviciosDisponibles,
+  setForm
+]);
 
   const disponibilidadHoraria = useMemo(() => {
 
