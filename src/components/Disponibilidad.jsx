@@ -318,18 +318,18 @@ export default function Disponibilidad({ profesionales }) {
                         alignItems: "center",
 
                         padding: esMovil
-                          ? "12px"
-                          : "2px 0",
+                        ? "14px 0"
+                        : "2px 0",
 
-                        border: esMovil
-                          ? "1px solid #f0d9e8"
-                          : "none",
+                      border: "none",
 
-                        borderRadius: esMovil ? 12 : 0,
+                      borderBottom: esMovil
+                        ? "1px solid #f0d9e8"
+                        : "none",
 
-                        background: esMovil
-                          ? "#fffafd"
-                          : "transparent"
+                      borderRadius: 0,
+
+                      background: "transparent"
                       }}
                     >
                       {/* Día + activo */}
@@ -375,21 +375,21 @@ export default function Disponibilidad({ profesionales }) {
 
                       {/* Horas */}
 
-                      <div
-                        style={
-                          esMovil
-                            ? {
-                                display: "grid",
-                                gridTemplateColumns:
-                                  "minmax(0, 1fr) 20px minmax(0, 1fr)",
-                                gap: 8,
-                                alignItems: "end"
-                              }
-                            : {
-                                display: "contents"
-                              }
-                        }
-                      >
+                        <div
+                          style={
+                            esMovil
+                              ? {
+                                  display: "grid",
+                                  gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1fr)",
+                                  gap: 12,
+                                  alignItems: "end",
+                                  width: "100%"
+                                }
+                              : {
+                                  display: "contents"
+                                }
+                          }
+                        >
                         <div>
                           {esMovil && (
                             <div
@@ -422,18 +422,6 @@ export default function Disponibilidad({ profesionales }) {
                             }}
                           />
                         </div>
-
-                        {esMovil && (
-                          <div
-                            style={{
-                              textAlign: "center",
-                              paddingBottom: 10,
-                              color: "#aaa"
-                            }}
-                          >
-                            →
-                          </div>
-                        )}
 
                         <div>
                           {esMovil && (
