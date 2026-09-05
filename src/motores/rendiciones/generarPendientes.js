@@ -63,11 +63,11 @@ export async function generarRendicionesPendientes() {
 
             (total, turno) =>
                 total + Number(
-                    turno.servicios?.precio || 0
+                    turno.precio || 0
                 ),
-
+        
             0
-
+        
         );
 
 
