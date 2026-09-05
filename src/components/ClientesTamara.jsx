@@ -11,6 +11,10 @@ export default function ClientesTamara() {
   const [historial, setHistorial] = useState([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [errorHistorial, setErrorHistorial] = useState("");
+  const [guardandoOrigen, setGuardandoOrigen] = useState(false);
+  const [origenForm, setOrigenForm] = useState({
+    origen: ""
+  });
 
   useEffect(() => {
     cargarClientes();
@@ -42,12 +46,29 @@ export default function ClientesTamara() {
     setErrorHistorial("");
     setCargandoHistorial(true);
 
-    const { data, error } = await supabase.rpc(
-      "historial_cliente_tamara",
-      {
+    const [resultadoHistorial, resultadoCliente] = await Promise.all([
+      supabase.rpc("historial_cliente_tamara", {
         cliente_id_input: cliente.cliente_id
-      }
-    );
+      }),
+      supabase
+        .from("clientes")
+        .select("origen")
+        .eq("id", cliente.cliente_id)
+        .single()
+    ]);
+
+    const { data, error } = resultadoHistorial;
+
+    if (!resultadoCliente.error) {
+      setOrigenForm({
+        origen: resultadoCliente.data?.origen || ""
+      });
+    } else {
+      console.error("Error cargando origen de clienta:", resultadoCliente.error);
+      setOrigenForm({
+        origen: ""
+      });
+    }
 
     if (error) {
       console.error(
@@ -65,6 +86,31 @@ export default function ClientesTamara() {
 
     setHistorial(data || []);
     setCargandoHistorial(false);
+  }
+
+  async function guardarOrigenCliente() {
+    if (!clienteSeleccionada?.cliente_id) return;
+
+    setGuardandoOrigen(true);
+    setErrorHistorial("");
+
+    const payload = {
+      origen: origenForm.origen || null
+    };
+
+    const { error } = await supabase
+      .from("clientes")
+      .update(payload)
+      .eq("id", clienteSeleccionada.cliente_id);
+
+    if (error) {
+      console.error("Error guardando origen de clienta:", error);
+      setErrorHistorial("No se pudo guardar el origen de esta clienta.");
+      setGuardandoOrigen(false);
+      return;
+    }
+
+    setGuardandoOrigen(false);
   }
 
   function volverAClientes() {
@@ -281,6 +327,79 @@ export default function ClientesTamara() {
               )}
             />
           </div>
+        </div>
+
+        {/* ORIGEN DE LA CLIENTA */}
+        <div
+          style={{
+            background: "#fff",
+            border: "1px solid #f0d9e8",
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 18
+          }}
+        >
+          <h3
+            style={{
+              color: "#cc2674",
+              margin: "0 0 4px",
+              fontSize: 18
+            }}
+          >
+            📣 Origen de la clienta
+          </h3>
+
+          <div
+            style={{
+              color: "#999",
+              fontSize: 12,
+              marginBottom: 16
+            }}
+          >
+            Indicá cómo llegó esta clienta.
+          </div>
+
+          <div style={{ maxWidth: 360 }}>
+            <label style={labelStyle}>Origen</label>
+            <select
+              value={origenForm.origen}
+              onChange={(e) =>
+                setOrigenForm({
+                  origen: e.target.value
+                })
+              }
+              style={inputStyle}
+            >
+              <option value="">Seleccionar...</option>
+                <option value="Instagram">Instagram</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Publicidad">Publicidad</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Google">Google</option>
+                <option value="Recomendación">Recomendación</option>
+                <option value="Orgánico">Orgánico</option>
+                <option value="Otro">Otro</option>
+            </select>
+          </div>
+
+          <button
+            type="button"
+            onClick={guardarOrigenCliente}
+            disabled={guardandoOrigen}
+            style={{
+              marginTop: 15,
+              border: "none",
+              background: "#cc2674",
+              color: "#fff",
+              borderRadius: 11,
+              padding: "10px 16px",
+              fontWeight: 800,
+              cursor: guardandoOrigen ? "default" : "pointer",
+              opacity: guardandoOrigen ? 0.65 : 1
+            }}
+          >
+            {guardandoOrigen ? "Guardando..." : "Guardar origen"}
+          </button>
         </div>
 
         {/* HISTORIAL */}
@@ -850,6 +969,26 @@ export default function ClientesTamara() {
     </div>
   );
 }
+
+const labelStyle = {
+  display: "block",
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#777",
+  marginBottom: 5
+};
+
+const inputStyle = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "10px 12px",
+  border: "2px solid #f0d9e8",
+  borderRadius: 10,
+  background: "#fff",
+  fontSize: 14,
+  outline: "none",
+  fontFamily: "inherit"
+};
 
 function Dato({ titulo, valor }) {
   return (

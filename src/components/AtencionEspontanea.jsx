@@ -76,6 +76,11 @@ export default function AtencionEspontanea({
       return;
     }
 
+    if (!form.telefono.trim()) {
+      alert("Ingresá el teléfono / WhatsApp de la clienta.");
+      return;
+    }
+
     if (!form.servicio) {
       alert("Seleccioná un servicio.");
       return;
@@ -196,12 +201,12 @@ export default function AtencionEspontanea({
         <div style={{ marginBottom: 16 }}>
 
           <label style={labelStyle}>
-            WhatsApp
+            WhatsApp *
           </label>
 
           <input
             type="text"
-            placeholder="Teléfono (opcional)"
+            placeholder="Ej: 098544544"
             value={form.telefono}
             onChange={e =>
               setForm({

@@ -169,7 +169,30 @@ consultaTurnos = consultaTurnos
 
   async function agregarTurno() {
 
-    if (!form.cliente || !form.fecha || !form.hora) return;
+    if (!form.cliente?.trim()) {
+      alert("Ingresá el nombre de la clienta.");
+      return;
+    }
+    
+    if (!form.telefono?.trim()) {
+      alert("Ingresá el teléfono / WhatsApp de la clienta.");
+      return;
+    }
+    
+    if (!form.fecha) {
+      alert("Seleccioná una fecha.");
+      return;
+    }
+    
+    if (!form.servicio) {
+      alert("Seleccioná un servicio.");
+      return;
+    }
+    
+    if (!form.hora) {
+      alert("Seleccioná un horario.");
+      return;
+    }
   
     let profesionalId = form.profesional_id;
   

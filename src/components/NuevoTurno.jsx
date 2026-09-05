@@ -113,9 +113,11 @@ useEffect(() => {
   );
   
   const puedeConfirmar =
-    !!form.cliente &&
-    !!form.fecha &&
-    !!horarioSeleccionado?.disponible;
+  !!form.cliente?.trim() &&
+  !!form.telefono?.trim() &&
+  !!form.fecha &&
+  !!form.servicio &&
+  !!horarioSeleccionado?.disponible;
 
   return (
 
@@ -125,13 +127,13 @@ useEffect(() => {
             <Campo label="Nombre de la cliente *">
               <input value={form.cliente} onChange={e => setForm({...form, cliente:e.target.value})} placeholder="Ej: Laura Pérez" style={inputStyle} />
             </Campo>
-            <Campo label="Teléfono / WhatsApp">
+            <Campo label="Teléfono / WhatsApp *">
               <input value={form.telefono} onChange={e => setForm({...form, telefono:e.target.value})} placeholder="Ej: 098544544" style={inputStyle} />
             </Campo>
             <Campo label="Fecha *">
               <input type="date" value={form.fecha} onChange={e => setForm({...form, fecha:e.target.value})} style={inputStyle} />
             </Campo>
-            <Campo label="Profesional *">
+            <Campo label="Profesional">
             <select
                 value={form.profesional_id || ""}
                 onChange={e =>

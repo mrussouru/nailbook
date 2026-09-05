@@ -139,6 +139,14 @@ export default function AgendaTamara() {
         ? null
         : Number(form.precio_estimado);
 
+        if (
+            precioEstimado !== null &&
+            (!Number.isFinite(precioEstimado) || precioEstimado < 0)
+          ) {
+            alert("Ingresá un precio estimado válido.");
+            return;
+          }
+
     setCargando(true);
 
     try {
@@ -1140,33 +1148,20 @@ export default function AgendaTamara() {
                 onChange={(e) =>
                   setForm({
                     ...form,
-                    origen_cliente:
-                      e.target.value
+                    origen_cliente: e.target.value
                   })
                 }
                 style={inputStyle}
               >
-                <option value="">
-                  Seleccionar...
-                </option>
-                <option value="Publicidad Instagram">
-                  Publicidad Instagram
-                </option>
-                <option value="Instagram orgánico">
-                  Instagram orgánico
-                </option>
-                <option value="Recomendación">
-                  Recomendación
-                </option>
-                <option value="Google">
-                  Google
-                </option>
-                <option value="Clienta anterior">
-                  Clienta anterior
-                </option>
-                <option value="Otro">
-                  Otro
-                </option>
+                <option value="">Seleccionar...</option>
+                <option value="Instagram">Instagram</option>
+                <option value="WhatsApp">WhatsApp</option>
+                <option value="Publicidad">Publicidad</option>
+                <option value="Facebook">Facebook</option>
+                <option value="Google">Google</option>
+                <option value="Recomendación">Recomendación</option>
+                <option value="Orgánico">Orgánico</option>
+                <option value="Otro">Otro</option>
               </select>
             </Campo>
           </div>
