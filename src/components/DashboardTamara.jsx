@@ -12,6 +12,40 @@ export default function DashboardTamara() {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
+  const [servicios, setServicios] = useState([]);
+  const [cargandoServicios, setCargandoServicios] = useState(true);
+  const [errorServicios, setErrorServicios] = useState("");
+
+  useEffect(() => {
+    let vigente = true;
+    setServicios([]);
+    setErrorServicios("");
+    if (!desde || !hasta || desde > hasta) {
+      setCargandoServicios(false);
+      return;
+    }
+
+    async function cargarServicios() {
+      setCargandoServicios(true);
+      try {
+        const { data, error } = await supabase.rpc("estadisticas_servicios_tamara", {
+          p_desde: desde,
+          p_hasta: hasta
+        });
+        if (!vigente) return;
+        if (error) throw error;
+        setServicios(data || []);
+      } catch {
+        if (vigente) setErrorServicios("No se pudo cargar el rendimiento por servicio. Intentá nuevamente más tarde.");
+      } finally {
+        if (vigente) setCargandoServicios(false);
+      }
+    }
+
+    cargarServicios();
+    return () => { vigente = false; };
+  }, [desde, hasta]);
+
   useEffect(() => {
     cargarDashboard();
   }, [desde, hasta]);
@@ -432,6 +466,53 @@ export default function DashboardTamara() {
             </div>
           </div>
         </>
+      )}
+
+      {desde && hasta && desde <= hasta && (
+        <section style={{
+          background: "#fff", border: "1px solid #f0d9e8",
+          borderRadius: 16, padding: 18, marginTop: 18
+        }}>
+          <h3 style={{ margin: "0 0 16px", color: "#cc2674", fontSize: 18 }}>
+            Rendimiento por servicio
+          </h3>
+          {cargandoServicios ? (
+            <p role="status" style={{ color: "#999", fontSize: 13 }}>Cargando servicios...</p>
+          ) : errorServicios ? (
+            <p role="alert" style={{ color: "#c62828", fontSize: 13 }}>{errorServicios}</p>
+          ) : servicios.length === 0 ? (
+            <p style={{ color: "#999", fontSize: 13 }}>No hay servicios completados en este período.</p>
+          ) : (
+            <div style={{ display: "grid", gap: 12 }}>
+              {servicios.map((servicio, index) => {
+                const cantidad = Number(servicio.cantidad || 0);
+                const porcentaje = Number(servicio.porcentaje_facturacion || 0);
+                return (
+                  <div key={servicio.servicio_id ?? `manual-${index}`} style={{
+                    background: "#fff7fb", borderRadius: 12, padding: 14, minWidth: 0
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                      <strong style={{ color: "#2d1f27", overflowWrap: "anywhere" }}>{servicio.nombre}</strong>
+                      <span style={{ color: "#777", fontSize: 13 }}>
+                        {cantidad} {cantidad === 1 ? "servicio" : "servicios"}
+                      </span>
+                    </div>
+                    <div style={{ display: "flex", gap: "8px 20px", flexWrap: "wrap", marginTop: 10, fontSize: 14 }}>
+                      <strong style={{ color: "#cc2674" }}>${dinero(servicio.facturacion)} facturados</strong>
+                      <span style={{ color: "#777" }}>Promedio ${dinero(servicio.importe_promedio)}</span>
+                    </div>
+                    <div style={{ color: "#777", fontSize: 12, marginTop: 12 }}>
+                      {porcentaje.toLocaleString("es-UY", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% de la facturación
+                    </div>
+                    <div aria-hidden="true" style={{ background: "#f0d9e8", borderRadius: 4, height: 6, marginTop: 6, overflow: "hidden" }}>
+                      <div style={{ background: "#cc2674", height: "100%", width: `${Math.min(100, Math.max(0, porcentaje))}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
       )}
     </div>
   );
