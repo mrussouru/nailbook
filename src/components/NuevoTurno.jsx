@@ -1,3 +1,4 @@
+import SelectorCliente from "./SelectorCliente";
 import { HORARIOS } from "../helpers";
 import { obtenerDisponibilidadHoraria } from "../motores/MDI/disponibilidadHoraria";
 import { useEffect, useMemo } from "react";
@@ -124,12 +125,18 @@ useEffect(() => {
         <div>
           <h2 style={{ margin:'0 0 20px', fontWeight:800, color:'#b05080' }}>Nuevo turno</h2>
           <div style={{ background:'#fff', borderRadius:18, padding:28, border:'2px solid #f0d9e8', maxWidth:480 }}>
-            <Campo label="Nombre de la cliente *">
-              <input value={form.cliente} onChange={e => setForm({...form, cliente:e.target.value})} placeholder="Ej: Laura Pérez" style={inputStyle} />
-            </Campo>
-            <Campo label="Teléfono / WhatsApp *">
-              <input value={form.telefono} onChange={e => setForm({...form, telefono:e.target.value})} placeholder="Ej: 098544544" style={inputStyle} />
-            </Campo>
+            <SelectorCliente
+              value={form}
+              onChange={(cliente) => setForm(actual => ({ ...actual, ...cliente }))}
+              inputStyle={inputStyle}
+            >
+              <Campo label="Nombre de la cliente *">
+                <input value={form.cliente} onChange={e => setForm({...form, cliente:e.target.value})} placeholder="Ej: Laura Pérez" style={inputStyle} />
+              </Campo>
+              <Campo label="Teléfono / WhatsApp *">
+                <input value={form.telefono} onChange={e => setForm({...form, telefono:e.target.value})} placeholder="Ej: 098544544" style={inputStyle} />
+              </Campo>
+            </SelectorCliente>
             <Campo label="Fecha *">
               <input type="date" value={form.fecha} onChange={e => setForm({...form, fecha:e.target.value})} style={inputStyle} />
             </Campo>

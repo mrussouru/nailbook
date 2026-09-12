@@ -586,7 +586,7 @@ export default function Rendiciones() {
                             <br />
 
                             💵 ${Number(
-                                turno.servicios?.precio || 0
+                                turno.precio || 0
                             ).toLocaleString("es-UY")}
 
                         </div>

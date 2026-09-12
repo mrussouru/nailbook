@@ -18,6 +18,7 @@ import AtencionEspontanea from "./components/AtencionEspontanea";
 import Dashboard from "./components/Dashboard";
 import Clientes from "./components/Clientes";
 import AgendaTamara from "./components/AgendaTamara";
+import ServiciosTamara from "./components/ServiciosTamara";
 import ClientesTamara from "./components/ClientesTamara";
 import DashboardTamara from "./components/DashboardTamara";
 import GastosTamara from "./components/GastosTamara";
@@ -36,7 +37,7 @@ export default function PanelInterno() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(formatDate(new Date()))
   const [mesActual, setMesActual] = useState(new Date())
   const [turnoSeleccionado, setTurnoSeleccionado] = useState(null)
-  const [form, setForm] = useState({ cliente:'', telefono:'', servicio:'',profesional_id:'', fecha: formatDate(new Date()), hora:'10:00', nota:'' })
+  const [form, setForm] = useState({ cliente_id: null, cliente:'', telefono:'', servicio:'',profesional_id:'', fecha: formatDate(new Date()), hora:'10:00', nota:'' })
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
   const [msgPreview, setMsgPreview] = useState(null)
@@ -261,6 +262,7 @@ const precioTurno = servicioSeleccionado?.precio ?? null;
     const { error } = await supabase
       .from("turnos")
       .insert({
+        cliente_id: form.cliente_id || null,
         cliente: form.cliente,
         telefono: form.telefono,
         servicio: form.servicio,
@@ -284,6 +286,7 @@ const precioTurno = servicioSeleccionado?.precio ?? null;
     setFechaSeleccionada(form.fecha);
   
     setForm({
+      cliente_id: null,
       cliente: "",
       telefono: "",
       servicio: servicios[0]?.id || "",
@@ -344,7 +347,7 @@ const precioTurno = servicioSeleccionado?.precio ?? null;
   })
   const turnosFiltrados = turnosVisibles.filter(t => {
     const estadoOk = filtroEstado === 'todos' || t.estado === filtroEstado
-    const busOk = t.cliente.toLowerCase().includes(busqueda.toLowerCase()) || t.telefono.includes(busqueda)
+    const busOk = t.cliente.toLowerCase().includes(busqueda.toLowerCase()) || (t.telefono || '').includes(busqueda)
     return estadoOk && busOk
   }).sort((a,b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora))
 
@@ -527,6 +530,10 @@ setTurnoSeleccionado={setTurnoSeleccionado}
 
           {vista === "agenda-tamara" && usuario?.rol === "dueno" && (
             <AgendaTamara />
+          )}
+
+          {vista === "servicios-tamara" && usuario?.rol === "dueno" && (
+            <ServiciosTamara />
           )}
 
           {vista === "clientes-tamara" && usuario?.rol === "dueno" && (

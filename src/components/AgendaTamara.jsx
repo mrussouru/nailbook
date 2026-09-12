@@ -9,6 +9,7 @@ export default function AgendaTamara() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(
     fechaLocal(new Date())
   );
+  const [mostrarSelectorFecha, setMostrarSelectorFecha] = useState(false);
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
@@ -31,7 +32,12 @@ export default function AgendaTamara() {
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [guardandoDetalle, setGuardandoDetalle] = useState(false);
 
+  const [serviciosTamara, setServiciosTamara] = useState([]);
+  const [cargandoServicios, setCargandoServicios] = useState(false);
+  const [errorServicios, setErrorServicios] = useState("");
+
   const [nuevoConcepto, setNuevoConcepto] = useState({
+    servicio_id: "",
     concepto: "",
     importe: ""
   });
@@ -204,19 +210,51 @@ export default function AgendaTamara() {
     setTurnoAbierto(turno);
     setMostrarFormulario(false);
     setNuevoConcepto({
+      servicio_id: "",
       concepto: "",
       importe: ""
     });
 
-    await cargarDetalles(turno.id);
+    await Promise.all([cargarDetalles(turno.id), cargarServiciosTamara()]);
   }
 
   function cerrarTurno() {
     setTurnoAbierto(null);
     setDetalles([]);
     setNuevoConcepto({
+      servicio_id: "",
       concepto: "",
       importe: ""
+    });
+  }
+
+  async function cargarServiciosTamara() {
+    setCargandoServicios(true);
+    setErrorServicios("");
+    try {
+      const { data, error } = await supabase
+        .from("servicios_tamara")
+        .select("id,nombre,precio_referencia")
+        .eq("activo", true)
+        .order("orden", { ascending: true })
+        .order("nombre", { ascending: true });
+      if (error) throw error;
+      setServiciosTamara(data || []);
+    } catch (err) {
+      console.error(err);
+      setServiciosTamara([]);
+      setErrorServicios("No se pudieron cargar los servicios. Podés ingresar un concepto manual o volver a abrir la cita para reintentar.");
+    } finally {
+      setCargandoServicios(false);
+    }
+  }
+
+  function seleccionarServicio(servicioId) {
+    const servicio = serviciosTamara.find((item) => item.id === servicioId);
+    setNuevoConcepto({
+      servicio_id: servicio?.id || "",
+      concepto: servicio?.nombre || "",
+      importe: servicio?.precio_referencia ?? ""
     });
   }
 
@@ -290,6 +328,7 @@ export default function AgendaTamara() {
       .from("detalles_turnos_tamara")
       .insert({
         turno_id: turnoAbierto.id,
+        servicio_id: nuevoConcepto.servicio_id || null,
         concepto,
         importe,
         orden: siguienteOrden
@@ -306,6 +345,7 @@ export default function AgendaTamara() {
     }
 
     setNuevoConcepto({
+      servicio_id: "",
       concepto: "",
       importe: ""
     });
@@ -746,8 +786,32 @@ export default function AgendaTamara() {
                   }}
                   className="tamara-concepto-form"
                 >
+                  <div style={{ gridColumn: "1 / -1" }}>
+                    <Campo label="Servicio">
+                      <select
+                        aria-label="Servicio de Tamara"
+                        value={nuevoConcepto.servicio_id}
+                        onChange={(e) => seleccionarServicio(e.target.value)}
+                        disabled={cargandoServicios || guardandoDetalle}
+                        style={inputStyle}
+                      >
+                        <option value="">Otro / concepto manual</option>
+                        {serviciosTamara.map((servicio) => (
+                          <option key={servicio.id} value={servicio.id}>
+                            {servicio.nombre}
+                          </option>
+                        ))}
+                      </select>
+                    </Campo>
+                    {cargandoServicios && <p style={{ color: "#777" }}>Cargando servicios...</p>}
+                    {errorServicios && <p role="alert" style={{ color: "#a33" }}>{errorServicios}</p>}
+                    {!cargandoServicios && !errorServicios && serviciosTamara.length === 0 && (
+                      <p style={{ color: "#777" }}>No hay servicios activos. Podés agregar un concepto manual.</p>
+                    )}
+                  </div>
                   <Campo label="Concepto">
                     <input
+                      readOnly={Boolean(nuevoConcepto.servicio_id)}
                       value={nuevoConcepto.concepto}
                       onChange={(e) =>
                         setNuevoConcepto({
@@ -764,7 +828,7 @@ export default function AgendaTamara() {
                     <input
                       type="number"
                       min="0"
-                      step="1"
+                      step="0.01"
                       value={nuevoConcepto.importe}
                       onChange={(e) =>
                         setNuevoConcepto({
@@ -1246,17 +1310,63 @@ export default function AgendaTamara() {
               minWidth: 0
             }}
           >
-            <div
+            <button
+              type="button"
+              onClick={() => setMostrarSelectorFecha(!mostrarSelectorFecha)}
+              aria-expanded={mostrarSelectorFecha}
+              aria-label="Elegir fecha de la agenda"
               style={{
+                display: "block",
+                width: "100%",
+                border: "none",
+                background: "transparent",
+                padding: 0,
+                font: "inherit",
+                cursor: "pointer",
                 fontWeight: 800,
                 color: "#b05080",
                 textTransform: "capitalize"
               }}
             >
+              📅{" "}
               {formatearFecha(
                 fechaSeleccionada
               )}
-            </div>
+            </button>
+
+            {mostrarSelectorFecha && (
+              <div style={{ marginTop: 8 }}>
+                <input
+                  type="date"
+                  aria-label="Fecha de la agenda"
+                  value={fechaSeleccionada}
+                  onChange={(e) => {
+                    if (!e.target.value || !e.target.validity.valid) return;
+                    setFechaSeleccionada(e.target.value);
+                    cerrarTurno();
+                    setMostrarSelectorFecha(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") setMostrarSelectorFecha(false);
+                  }}
+                  style={inputStyle}
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSelectorFecha(false)}
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "#999",
+                    fontSize: 12,
+                    cursor: "pointer",
+                    marginTop: 3
+                  }}
+                >
+                  Cancelar
+                </button>
+              </div>
+            )}
 
             <button
               onClick={() =>

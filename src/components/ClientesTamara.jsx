@@ -12,6 +12,8 @@ export default function ClientesTamara() {
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [errorHistorial, setErrorHistorial] = useState("");
   const [guardandoOrigen, setGuardandoOrigen] = useState(false);
+  const [editandoOrigen, setEditandoOrigen] = useState(false);
+  const [origenOriginal, setOrigenOriginal] = useState("");
   const [origenForm, setOrigenForm] = useState({
     origen: ""
   });
@@ -41,6 +43,8 @@ export default function ClientesTamara() {
   }
 
   async function abrirCliente(cliente) {
+    setEditandoOrigen(false);
+    setOrigenForm({ origen: "" });
     setClienteSeleccionada(cliente);
     setHistorial([]);
     setErrorHistorial("");
@@ -98,10 +102,12 @@ export default function ClientesTamara() {
       origen: origenForm.origen || null
     };
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("clientes")
       .update(payload)
-      .eq("id", clienteSeleccionada.cliente_id);
+      .eq("id", clienteSeleccionada.cliente_id)
+      .select("id, origen")
+      .single();
 
     if (error) {
       console.error("Error guardando origen de clienta:", error);
@@ -110,7 +116,9 @@ export default function ClientesTamara() {
       return;
     }
 
+    setOrigenForm({ origen: data.origen || "" });
     setGuardandoOrigen(false);
+    setEditandoOrigen(false);
   }
 
   function volverAClientes() {
@@ -359,47 +367,105 @@ export default function ClientesTamara() {
             Indicá cómo llegó esta clienta.
           </div>
 
-          <div style={{ maxWidth: 360 }}>
-            <label style={labelStyle}>Origen</label>
-            <select
-              value={origenForm.origen}
-              onChange={(e) =>
-                setOrigenForm({
-                  origen: e.target.value
-                })
-              }
-              style={inputStyle}
-            >
-              <option value="">Seleccionar...</option>
-                <option value="Instagram">Instagram</option>
-                <option value="WhatsApp">WhatsApp</option>
-                <option value="Publicidad">Publicidad</option>
-                <option value="Facebook">Facebook</option>
-                <option value="Google">Google</option>
-                <option value="Recomendación">Recomendación</option>
-                <option value="Orgánico">Orgánico</option>
-                <option value="Otro">Otro</option>
-            </select>
-          </div>
+          {editandoOrigen ? (
+            <>
+              <div style={{ maxWidth: 360 }}>
+                <label style={labelStyle}>Origen</label>
+                <select
+                  disabled={guardandoOrigen}
+                  value={origenForm.origen}
+                  onChange={(e) =>
+                    setOrigenForm({
+                      origen: e.target.value
+                    })
+                  }
+                  style={inputStyle}
+                >
+                  <option value="">Seleccionar...</option>
+                    <option value="Instagram">Instagram</option>
+                    <option value="WhatsApp">WhatsApp</option>
+                    <option value="Publicidad">Publicidad</option>
+                    <option value="Facebook">Facebook</option>
+                    <option value="Google">Google</option>
+                    <option value="Recomendación">Recomendación</option>
+                    <option value="Orgánico">Orgánico</option>
+                    <option value="Otro">Otro</option>
+                </select>
+              </div>
 
-          <button
-            type="button"
-            onClick={guardarOrigenCliente}
-            disabled={guardandoOrigen}
-            style={{
-              marginTop: 15,
-              border: "none",
-              background: "#cc2674",
-              color: "#fff",
-              borderRadius: 11,
-              padding: "10px 16px",
-              fontWeight: 800,
-              cursor: guardandoOrigen ? "default" : "pointer",
-              opacity: guardandoOrigen ? 0.65 : 1
-            }}
-          >
-            {guardandoOrigen ? "Guardando..." : "Guardar origen"}
-          </button>
+              <button
+                type="button"
+                onClick={guardarOrigenCliente}
+                disabled={guardandoOrigen}
+                style={{
+                  marginTop: 15,
+                  border: "none",
+                  background: "#cc2674",
+                  color: "#fff",
+                  borderRadius: 11,
+                  padding: "10px 16px",
+                  fontWeight: 800,
+                  cursor: guardandoOrigen ? "default" : "pointer",
+                  opacity: guardandoOrigen ? 0.65 : 1
+                }}
+              >
+                {guardandoOrigen ? "Guardando..." : "Guardar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setOrigenForm({ origen: origenOriginal });
+                  setEditandoOrigen(false);
+                }}
+                disabled={guardandoOrigen}
+                style={{
+                  marginLeft: 10,
+                  border: "1px solid #f0d9e8",
+                  background: "#fff",
+                  color: "#777",
+                  borderRadius: 11,
+                  padding: "10px 16px",
+                  cursor: guardandoOrigen ? "default" : "pointer"
+                }}
+              >
+                Cancelar
+              </button>
+            </>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12
+              }}
+            >
+              <span style={{ color: "#555", fontSize: 14 }}>
+                {cargandoHistorial
+                  ? "Cargando origen..."
+                  : origenForm.origen || "Origen no registrado"}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setOrigenOriginal(origenForm.origen);
+                  setEditandoOrigen(true);
+                }}
+                disabled={cargandoHistorial || guardandoOrigen}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  color: "#777",
+                  padding: "6px 0",
+                  fontSize: 13,
+                  whiteSpace: "nowrap",
+                  cursor: cargandoHistorial || guardandoOrigen ? "default" : "pointer"
+                }}
+              >
+                {origenForm.origen ? "✏️ Cambiar" : "+ Agregar"}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* HISTORIAL */}

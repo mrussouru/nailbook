@@ -271,12 +271,12 @@ export default function Dashboard({
 
   const turnosPeriodo = useMemo(() => {
 
-    const inicioHoy = new Date(
-      hoy.getFullYear(),
-      hoy.getMonth(),
-      hoy.getDate()
-    );
-
+    if (periodo === "semana") {
+      const { desde, hasta } = obtenerRangoPeriodo();
+      return turnos.filter(turno =>
+        turno.fecha >= desde && turno.fecha <= hasta
+      );
+    }
 
     return turnos.filter(turno => {
 
@@ -297,35 +297,6 @@ export default function Dashboard({
 
           fechaTurno.getDate() ===
             hoy.getDate()
-        );
-
-      }
-
-
-      // ESTA SEMANA
-
-      if (periodo === "semana") {
-
-        const inicioSemana =
-          new Date(inicioHoy);
-
-        const dia =
-          inicioSemana.getDay();
-
-        const diferencia =
-          dia === 0
-            ? -6
-            : 1 - dia;
-
-        inicioSemana.setDate(
-          inicioSemana.getDate() +
-          diferencia
-        );
-
-
-        return (
-          fechaTurno >= inicioSemana &&
-          fechaTurno <= hoy
         );
 
       }
@@ -429,6 +400,26 @@ export default function Dashboard({
         Number(turno.precio || 0),
       0
     );
+
+  // =====================================================
+  // CANCELACIONES
+  // =====================================================
+
+  const cancelados = turnosPeriodo.filter(
+    turno => turno.estado === "cancelado"
+  );
+
+  const cancelaciones = cancelados.length;
+
+  const valorCancelado = cancelados.reduce(
+    (total, turno) => total + Number(turno.precio || 0),
+    0
+  );
+
+  const totalCompletadosCancelados = completados.length + cancelados.length;
+  const tasaCancelacion = totalCompletadosCancelados > 0
+    ? (cancelados.length / totalCompletadosCancelados) * 100
+    : 0;
 
   // =====================================================
 // AUSENCIAS / NO-SHOW
@@ -1069,6 +1060,24 @@ const finanzasProfesionales = useMemo(() => {
     valorPerdidoAusencias
   )}
   icono="💸"
+/>
+
+<Tarjeta
+  titulo="Cancelaciones"
+  valor={cancelaciones}
+  icono="❌"
+/>
+
+<Tarjeta
+  titulo="Tasa de cancelación"
+  valor={`${tasaCancelacion.toFixed(1)}%`}
+  icono="📊"
+/>
+
+<Tarjeta
+  titulo="Valor cancelado"
+  valor={dinero(valorCancelado)}
+  icono="💵"
 />
 
       </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../supabaseClient";
+import SelectorCliente from "./SelectorCliente";
 
 export default function AtencionEspontanea({
   servicios,
@@ -10,6 +11,7 @@ export default function AtencionEspontanea({
 }) {
 
   const [form, setForm] = useState({
+    cliente_id: null,
     cliente: "",
     telefono: "",
     servicio: "",
@@ -76,7 +78,7 @@ export default function AtencionEspontanea({
       return;
     }
 
-    if (!form.telefono.trim()) {
+    if (!(form.telefono || "").trim()) {
       alert("Ingresá el teléfono / WhatsApp de la clienta.");
       return;
     }
@@ -116,8 +118,9 @@ export default function AtencionEspontanea({
     const { error } = await supabase
       .from("turnos")
       .insert({
+        cliente_id: form.cliente_id || null,
         cliente: form.cliente.trim(),
-        telefono: form.telefono.trim(),
+        telefono: (form.telefono || "").trim(),
         servicio: form.servicio,
         profesional_id: profesionalIdFinal,
         fecha,
@@ -137,6 +140,7 @@ export default function AtencionEspontanea({
     }
 
     setForm({
+      cliente_id: null,
       cliente: "",
       telefono: "",
       servicio: "",
@@ -172,6 +176,11 @@ export default function AtencionEspontanea({
         }}
       >
 
+        <SelectorCliente
+          value={form}
+          onChange={(cliente) => setForm(actual => ({ ...actual, ...cliente }))}
+          inputStyle={inputStyle}
+        >
         {/* CLIENTE */}
 
         <div style={{ marginBottom: 16 }}>
@@ -219,6 +228,7 @@ export default function AtencionEspontanea({
 
         </div>
 
+        </SelectorCliente>
 
         {/* SERVICIO */}
 
