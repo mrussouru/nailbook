@@ -55,7 +55,8 @@ export default function Header({
 
   const finanzasDueno = [
     ["liquidaciones", "💰 Producción"],
-    ["rendiciones", "📋 Rendiciones"]
+    ["rendiciones", "📋 Rendiciones"],
+    ["gastos-salon", "💰 Gastos del salón"]
   ];
 
   // =========================

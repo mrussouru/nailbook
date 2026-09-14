@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 
 export default function Dashboard({
@@ -12,6 +12,14 @@ export default function Dashboard({
   const [ocupacion, setOcupacion] = useState(null);
   const [cargandoOcupacion, setCargandoOcupacion] = useState(true);
   const [ocupacionProfesionales, setOcupacionProfesionales] = useState([]);
+  const [finanzasSalon, setFinanzasSalon] = useState({
+    cargando: true,
+    rentabilidad: null,
+    gastosGenerales: null,
+    errorRentabilidad: "",
+    errorGastos: ""
+  });
+  const solicitudFinanciera = useRef(0);
 
   const hoy = new Date();
 
@@ -263,6 +271,63 @@ export default function Dashboard({
     setCargandoOcupacion(false);
 
   }
+
+
+  // =====================================================
+  // RESUMEN FINANCIERO DEL SALÓN
+  // =====================================================
+
+  useEffect(() => {
+    const solicitud = ++solicitudFinanciera.current;
+    const { desde, hasta } = obtenerRangoPeriodo();
+
+    async function cargarFinanzasSalon() {
+      setFinanzasSalon((actual) => ({
+        ...actual,
+        cargando: true,
+        errorRentabilidad: "",
+        errorGastos: ""
+      }));
+
+      const [resultadoRentabilidad, resultadoGastos] = await Promise.all([
+        supabase.rpc("rentabilidad_tamara", {
+          p_desde: desde,
+          p_hasta: hasta
+        }),
+        supabase
+          .from("gastos_salon")
+          .select("importe")
+          .gte("fecha", desde)
+          .lte("fecha", hasta)
+      ]);
+
+      if (solicitud !== solicitudFinanciera.current) return;
+
+      const rentabilidad = resultadoRentabilidad.error
+        ? null
+        : resultadoRentabilidad.data?.[0] || null;
+      const gastosGenerales = resultadoGastos.error
+        ? null
+        : (resultadoGastos.data || []).reduce(
+            (total, gasto) => total + Number(gasto.importe || 0),
+            0
+          );
+
+      setFinanzasSalon({
+        cargando: false,
+        rentabilidad,
+        gastosGenerales,
+        errorRentabilidad: resultadoRentabilidad.error
+          ? "No se pudo cargar la rentabilidad de Tamy."
+          : "",
+        errorGastos: resultadoGastos.error
+          ? "No se pudieron cargar los gastos generales."
+          : ""
+      });
+    }
+
+    cargarFinanzasSalon();
+  }, [periodo]);
 
 
   // =====================================================
@@ -1083,6 +1148,60 @@ const finanzasProfesionales = useMemo(() => {
       </div>
 
 
+      <Seccion titulo="🏠 Resumen financiero del salón">
+        {finanzasSalon.cargando ? (
+          <div style={{ color: "#999", fontSize: 14 }}>
+            Cargando resumen financiero...
+          </div>
+        ) : (
+          <>
+            {(finanzasSalon.errorRentabilidad || finanzasSalon.errorGastos) && (
+              <div style={{ color: "#c62828", fontSize: 13, marginBottom: 14 }}>
+                {finanzasSalon.errorRentabilidad || finanzasSalon.errorGastos}
+                {finanzasSalon.errorRentabilidad && finanzasSalon.errorGastos
+                  ? " " + finanzasSalon.errorGastos
+                  : ""}
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+                gap: 14
+              }}
+            >
+              <BloqueFinanciero titulo="TAMY">
+                <DatoFinanciero titulo="Facturación" valor={finanzasSalon.rentabilidad ? dinero(Number(finanzasSalon.rentabilidad.facturacion || 0)) : "—"} />
+                <DatoFinanciero titulo="Gastos propios" valor={finanzasSalon.rentabilidad ? dinero(Number(finanzasSalon.rentabilidad.gastos_totales || 0)) : "—"} />
+                <DatoFinanciero titulo="Resultado Tamy" valor={finanzasSalon.rentabilidad ? dinero(Number(finanzasSalon.rentabilidad.ganancia || 0)) : "—"} destacado />
+              </BloqueFinanciero>
+
+              <BloqueFinanciero titulo="EQUIPO">
+                <DatoFinanciero titulo="Facturación" valor={dinero(finanzas.facturacionBruta)} />
+                <DatoFinanciero titulo="Comisiones estimadas" valor={dinero(finanzas.pagoProfesionales)} />
+                <DatoFinanciero titulo="Resultado equipo" valor={dinero(finanzas.ingresoSalon)} destacado />
+                <div style={{ color: "#888", fontSize: 11, marginTop: 8 }}>
+                  Las comisiones se estiman con el porcentaje actual de cada profesional.
+                </div>
+              </BloqueFinanciero>
+
+              <BloqueFinanciero titulo="SALÓN">
+                <DatoFinanciero titulo="Gastos generales" valor={finanzasSalon.gastosGenerales !== null ? dinero(finanzasSalon.gastosGenerales) : "—"} />
+                <DatoFinanciero
+                  titulo="Resultado total estimado"
+                  valor={finanzasSalon.rentabilidad && finanzasSalon.gastosGenerales !== null
+                    ? dinero(Number(finanzasSalon.rentabilidad.ganancia || 0) + finanzas.ingresoSalon - finanzasSalon.gastosGenerales)
+                    : "—"}
+                  destacado
+                />
+              </BloqueFinanciero>
+            </div>
+          </>
+        )}
+      </Seccion>
+
+
 {/* AUSENCIAS POR PROFESIONAL */}
 
 <Seccion titulo="📉 Ausencias por profesional">
@@ -1630,6 +1749,32 @@ function Fila({
 
   );
 
+}
+
+function BloqueFinanciero({ titulo, children }) {
+  return (
+    <div
+      style={{
+        border: "1px solid #f0d9e8",
+        borderRadius: 14,
+        padding: 14,
+        background: "#fffafd"
+      }}
+    >
+      <div
+        style={{
+          color: "#b05080",
+          fontSize: 11,
+          fontWeight: 900,
+          letterSpacing: ".6px",
+          marginBottom: 10
+        }}
+      >
+        {titulo}
+      </div>
+      <div style={{ display: "grid", gap: 8 }}>{children}</div>
+    </div>
+  );
 }
 
 function DatoFinanciero({

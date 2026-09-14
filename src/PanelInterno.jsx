@@ -22,6 +22,7 @@ import ServiciosTamara from "./components/ServiciosTamara";
 import ClientesTamara from "./components/ClientesTamara";
 import DashboardTamara from "./components/DashboardTamara";
 import GastosTamara from "./components/GastosTamara";
+import GastosSalon from "./components/GastosSalon";
 
 import {
   HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, addDays, horaAMinutos,
@@ -542,6 +543,10 @@ setTurnoSeleccionado={setTurnoSeleccionado}
 
           {vista === "gastos-tamara" && usuario?.rol === "dueno" && (
             <GastosTamara />
+          )}
+
+          {vista === "gastos-salon" && usuario?.rol === "dueno" && (
+            <GastosSalon />
           )}
 
           {vista === "servicios" && usuario?.rol === "dueno" && (
