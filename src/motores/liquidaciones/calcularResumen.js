@@ -39,11 +39,38 @@ export function calcularResumen(
   
   });
   
-  const facturacion = turnosDelPeriodo.reduce((total, turno) => {
+  const totales = turnosDelPeriodo.reduce((acumulado, turno) => {
 
-    return total + Number(turno.precio || 0);
-  
-  }, 0);
+    const precio = Number(turno.precio || 0);
+    const tieneMontosCongelados =
+      turno.monto_profesional !== null &&
+      turno.monto_profesional !== undefined &&
+      turno.monto_salon !== null &&
+      turno.monto_salon !== undefined;
+
+    let montoProfesional;
+    let montoSalon;
+
+    if (tieneMontosCongelados) {
+      montoProfesional = Number(turno.monto_profesional);
+      montoSalon = Number(turno.monto_salon);
+    } else {
+      const porcentaje = Number(profesional.porcentaje || 0);
+      montoProfesional = precio * porcentaje / 100;
+      montoSalon = precio - montoProfesional;
+    }
+
+    return {
+      facturacion: acumulado.facturacion + precio,
+      montoProfesional: acumulado.montoProfesional + montoProfesional,
+      montoSalon: acumulado.montoSalon + montoSalon
+    };
+
+  }, {
+    facturacion: 0,
+    montoProfesional: 0,
+    montoSalon: 0
+  });
   
         return {
   
@@ -53,7 +80,11 @@ export function calcularResumen(
   
           cantidadTurnos: turnosDelPeriodo.length,
   
-          facturacion
+          facturacion: totales.facturacion,
+
+          montoProfesional: totales.montoProfesional,
+
+          montoSalon: totales.montoSalon
   
         };
   

@@ -642,6 +642,36 @@ const ausenciasProfesionales = useMemo(() => {
   turnosPeriodo,
   profesionales
 ]);
+    function obtenerMontosComision(turno) {
+    const precio = Number(turno.precio || 0);
+    const tieneMontosCongelados =
+      turno.monto_profesional !== null &&
+      turno.monto_profesional !== undefined &&
+      turno.monto_salon !== null &&
+      turno.monto_salon !== undefined;
+
+    if (tieneMontosCongelados) {
+      return {
+        precio,
+        comision: Number(turno.monto_profesional),
+        ingresoSalon: Number(turno.monto_salon)
+      };
+    }
+
+    const profesional = profesionales.find(
+      p => p.id === turno.profesional_id
+    );
+    const porcentaje = Number(profesional?.porcentaje || 0);
+    const comision = precio * (porcentaje / 100);
+
+    return {
+      precio,
+      comision,
+      ingresoSalon: precio - comision
+    };
+  }
+
+
     // =====================================================
 // FINANZAS
 // =====================================================
@@ -653,32 +683,11 @@ const finanzas = useMemo(() => {
 
   completados.forEach(turno => {
 
-    const precio = Number(
-      turno.precio || 0
-    );
+    const { comision, ingresoSalon: parteSalon } =
+      obtenerMontosComision(turno);
 
-    const profesional =
-      profesionales.find(
-        p => p.id === turno.profesional_id
-      );
-
-    const porcentajeProfesional =
-      Number(
-        profesional?.porcentaje || 0
-      );
-
-    const pagoProfesional =
-      precio *
-      (porcentajeProfesional / 100);
-
-    const parteSalon =
-      precio - pagoProfesional;
-
-    pagoProfesionales +=
-      pagoProfesional;
-
-    ingresoSalon +=
-      parteSalon;
+    pagoProfesionales += comision;
+    ingresoSalon += parteSalon;
 
   });
 
@@ -723,20 +732,14 @@ const finanzasProfesionales = useMemo(() => {
       return;
     }
 
-    const precio = Number(
-      turno.precio || 0
-    );
+    const { precio, comision, ingresoSalon } =
+      obtenerMontosComision(turno);
 
     const porcentaje =
-      Number(
-        profesional.porcentaje || 0
-      );
-
-    const comision =
-      precio * (porcentaje / 100);
-
-    const ingresoSalon =
-      precio - comision;
+      turno.porcentaje_profesional_aplicado !== null &&
+      turno.porcentaje_profesional_aplicado !== undefined
+        ? Number(turno.porcentaje_profesional_aplicado)
+        : Number(profesional.porcentaje || 0);
 
 
     if (!mapa[profesional.id]) {
@@ -1182,7 +1185,7 @@ const finanzasProfesionales = useMemo(() => {
                 <DatoFinanciero titulo="Comisiones estimadas" valor={dinero(finanzas.pagoProfesionales)} />
                 <DatoFinanciero titulo="Resultado equipo" valor={dinero(finanzas.ingresoSalon)} destacado />
                 <div style={{ color: "#888", fontSize: 11, marginTop: 8 }}>
-                  Las comisiones se estiman con el porcentaje actual de cada profesional.
+                  Las comisiones de turnos completados usan el reparto registrado en cada atención.
                 </div>
               </BloqueFinanciero>
 

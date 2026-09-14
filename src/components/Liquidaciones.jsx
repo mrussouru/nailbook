@@ -259,13 +259,11 @@ import {
   
             {resumen.map(item => {
   
-              const porcentaje = Number(item.profesional.porcentaje || 0);
-  
               const montoProfesional =
-                item.facturacion * (porcentaje / 100);
+                Number(item.montoProfesional || 0);
   
               const montoSalon =
-                item.facturacion - montoProfesional;
+                Number(item.montoSalon || 0);
   
               return (
   
@@ -342,7 +340,7 @@ import {
                           color: "#666"
                         }}
                       >
-                        Salón ({100 - porcentaje}%)
+                        Salón
                       </div>
   
                       <div
@@ -361,7 +359,7 @@ import {
                           color: "#666"
                         }}
                       >
-                        Profesional ({porcentaje}%)
+                        Profesional
                       </div>
   
                       <div

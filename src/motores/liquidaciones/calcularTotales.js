@@ -6,37 +6,24 @@
 export function calcularTotales(resumen) {
 
     const facturacion = resumen.reduce(
-  
-      (t, r) => t + r.facturacion,
-  
+      (total, item) => total + Number(item.facturacion || 0),
       0
-  
     );
-  
+
     const profesionales = resumen.reduce(
-  
-      (t, r) =>
-  
-        t +
-  
-        r.facturacion *
-  
-        (Number(r.profesional.porcentaje || 0) / 100),
-  
+      (total, item) => total + Number(item.montoProfesional || 0),
       0
-  
     );
-  
-    const salon = facturacion - profesionales;
-  
+
+    const salon = resumen.reduce(
+      (total, item) => total + Number(item.montoSalon || 0),
+      0
+    );
+
     return {
-  
       facturacion,
-  
       profesionales,
-  
       salon
-  
     };
-  
-  }
+
+}

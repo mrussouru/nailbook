@@ -12,6 +12,8 @@ export default function Servicios({ onServiciosActualizados }) {
     duracion: "",
     precio: "",
     categoria: "",
+    usarPorcentajeEspecifico: false,
+    porcentajeProfesional: "",
     seguimiento_activo: false,
     dias_seguimiento: ""
   });
@@ -23,6 +25,8 @@ export default function Servicios({ onServiciosActualizados }) {
     duracion: "",
     precio: "",
     categoria: "",
+    usarPorcentajeEspecifico: false,
+    porcentajeProfesional: "",
     seguimiento_activo: false,
     dias_seguimiento: ""
   });
@@ -67,6 +71,19 @@ export default function Servicios({ onServiciosActualizados }) {
   }
 
 
+  function validarPorcentaje(servicio) {
+    if (!servicio.usarPorcentajeEspecifico) return true;
+
+    const porcentaje = Number(servicio.porcentajeProfesional);
+    if (servicio.porcentajeProfesional === "" || !Number.isFinite(porcentaje) || porcentaje < 0 || porcentaje > 100) {
+      alert("El porcentaje para la profesional debe estar entre 0 y 100.");
+      return false;
+    }
+
+    return true;
+  }
+
+
   function validarSeguimiento(servicio) {
 
     if (
@@ -98,7 +115,7 @@ export default function Servicios({ onServiciosActualizados }) {
       return;
     }
 
-    if (!validarSeguimiento(nuevoServicio)) {
+    if (!validarPorcentaje(nuevoServicio) || !validarSeguimiento(nuevoServicio)) {
       return;
     }
 
@@ -124,6 +141,9 @@ export default function Servicios({ onServiciosActualizados }) {
         activo: true,
         orden: siguienteOrden,
         categoria: nuevoServicio.categoria.trim() || null,
+        porcentaje_profesional: nuevoServicio.usarPorcentajeEspecifico
+          ? Number(nuevoServicio.porcentajeProfesional)
+          : null,
 
         seguimiento_activo:
           nuevoServicio.seguimiento_activo,
@@ -157,6 +177,8 @@ export default function Servicios({ onServiciosActualizados }) {
       duracion: "",
       precio: "",
       categoria: "",
+      usarPorcentajeEspecifico: false,
+      porcentajeProfesional: "",
       seguimiento_activo: false,
       dias_seguimiento: ""
     });
@@ -204,6 +226,8 @@ export default function Servicios({ onServiciosActualizados }) {
       duracion: servicio.duracion,
       precio: servicio.precio,
       categoria: servicio.categoria || "",
+      usarPorcentajeEspecifico: servicio.porcentaje_profesional !== null && servicio.porcentaje_profesional !== undefined,
+      porcentajeProfesional: servicio.porcentaje_profesional ?? "",
 
       seguimiento_activo:
         Boolean(servicio.seguimiento_activo),
@@ -226,7 +250,7 @@ export default function Servicios({ onServiciosActualizados }) {
       return;
     }
 
-    if (!validarSeguimiento(servicioEditado)) {
+    if (!validarPorcentaje(servicioEditado) || !validarSeguimiento(servicioEditado)) {
       return;
     }
 
@@ -238,6 +262,9 @@ export default function Servicios({ onServiciosActualizados }) {
         precio: Number(servicioEditado.precio),
         categoria:
           servicioEditado.categoria.trim() || null,
+        porcentaje_profesional: servicioEditado.usarPorcentajeEspecifico
+          ? Number(servicioEditado.porcentajeProfesional)
+          : null,
 
         seguimiento_activo:
           servicioEditado.seguimiento_activo,
@@ -384,6 +411,50 @@ export default function Servicios({ onServiciosActualizados }) {
               style={inputStyle}
             />
 
+
+
+
+            <div style={comisionStyle}>
+              <div style={{ fontWeight: 700, color: "#555", marginBottom: 8 }}>
+                Comisión
+              </div>
+              <label style={radioLabelStyle}>
+                <input
+                  type="radio"
+                  name="comision-nuevo"
+                  checked={!nuevoServicio.usarPorcentajeEspecifico}
+                  onChange={() => setNuevoServicio({ ...nuevoServicio, usarPorcentajeEspecifico: false })}
+                />
+                Usar porcentaje general de la profesional
+              </label>
+              <label style={radioLabelStyle}>
+                <input
+                  type="radio"
+                  name="comision-nuevo"
+                  checked={nuevoServicio.usarPorcentajeEspecifico}
+                  onChange={() => setNuevoServicio({ ...nuevoServicio, usarPorcentajeEspecifico: true })}
+                />
+                Usar porcentaje específico para este servicio
+              </label>
+              {nuevoServicio.usarPorcentajeEspecifico && (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                  <label htmlFor="porcentaje-nuevo" style={{ fontSize: 12, color: "#777" }}>
+                    Porcentaje para la profesional
+                  </label>
+                  <input
+                    id="porcentaje-nuevo"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    value={nuevoServicio.porcentajeProfesional}
+                    onChange={e => setNuevoServicio({ ...nuevoServicio, porcentajeProfesional: e.target.value })}
+                    style={{ ...inputStyle, width: 90 }}
+                  />
+                  <span>%</span>
+                </div>
+              )}
+            </div>
 
             {/* SEGUIMIENTO */}
 
@@ -555,6 +626,12 @@ export default function Servicios({ onServiciosActualizados }) {
             </div>
 
 
+            <div style={{ marginTop: 6, color: "#666", fontSize: 13 }}>
+              {servicio.porcentaje_profesional === null || servicio.porcentaje_profesional === undefined
+                ? "Comisión: porcentaje general"
+                : `Comisión profesional: ${servicio.porcentaje_profesional}% · Salón: ${100 - Number(servicio.porcentaje_profesional)}%`}
+            </div>
+
             <div
               style={{
                 marginTop: 6,
@@ -698,6 +775,50 @@ export default function Servicios({ onServiciosActualizados }) {
                   style={inputStyle}
                 />
 
+
+
+
+                <div style={comisionStyle}>
+                  <div style={{ fontWeight: 700, color: "#555", marginBottom: 8 }}>
+                    Comisión
+                  </div>
+                  <label style={radioLabelStyle}>
+                    <input
+                      type="radio"
+                      name={`comision-editar-${servicio.id}`}
+                      checked={!servicioEditado.usarPorcentajeEspecifico}
+                      onChange={() => setServicioEditado({ ...servicioEditado, usarPorcentajeEspecifico: false })}
+                    />
+                    Usar porcentaje general de la profesional
+                  </label>
+                  <label style={radioLabelStyle}>
+                    <input
+                      type="radio"
+                      name={`comision-editar-${servicio.id}`}
+                      checked={servicioEditado.usarPorcentajeEspecifico}
+                      onChange={() => setServicioEditado({ ...servicioEditado, usarPorcentajeEspecifico: true })}
+                    />
+                    Usar porcentaje específico para este servicio
+                  </label>
+                  {servicioEditado.usarPorcentajeEspecifico && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                      <label htmlFor={`porcentaje-editar-${servicio.id}`} style={{ fontSize: 12, color: "#777" }}>
+                        Porcentaje para la profesional
+                      </label>
+                      <input
+                        id={`porcentaje-editar-${servicio.id}`}
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={servicioEditado.porcentajeProfesional}
+                        onChange={e => setServicioEditado({ ...servicioEditado, porcentajeProfesional: e.target.value })}
+                        style={{ ...inputStyle, width: 90 }}
+                      />
+                      <span>%</span>
+                    </div>
+                  )}
+                </div>
 
                 {/* SEGUIMIENTO EDITAR */}
 
@@ -852,6 +973,24 @@ export default function Servicios({ onServiciosActualizados }) {
 
 
 /* ESTILOS */
+
+const comisionStyle = {
+  margin: "14px 0",
+  padding: 12,
+  borderRadius: 10,
+  background: "#fff",
+  border: "1px solid #f0d9e8"
+};
+
+const radioLabelStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  marginBottom: 7,
+  color: "#555",
+  fontSize: 13,
+  cursor: "pointer"
+};
 
 const inputStyle = {
   width: "100%",

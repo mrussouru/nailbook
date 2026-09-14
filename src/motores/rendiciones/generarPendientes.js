@@ -59,29 +59,54 @@ export async function generarRendicionesPendientes() {
 
     for (const grupo of Object.values(grupos)) {
 
-        const facturacion = grupo.turnos.reduce(
+        const totales = grupo.turnos.reduce(
 
-            (total, turno) =>
-                total + Number(
-                    turno.precio || 0
-                ),
-        
-            0
-        
+            (acumulado, turno) => {
+                const precio = Number(turno.precio || 0);
+                const tieneMontosCongelados =
+                    turno.monto_profesional !== null &&
+                    turno.monto_profesional !== undefined &&
+                    turno.monto_salon !== null &&
+                    turno.monto_salon !== undefined;
+
+                let montoProfesionalTurno;
+                let montoSalonTurno;
+
+                if (tieneMontosCongelados) {
+                    montoProfesionalTurno = Number(turno.monto_profesional);
+                    montoSalonTurno = Number(turno.monto_salon);
+                } else {
+                    const porcentaje = Number(
+                        grupo.profesional.porcentaje || 0
+                    );
+                    montoProfesionalTurno =
+                        precio * porcentaje / 100;
+                    montoSalonTurno =
+                        precio - montoProfesionalTurno;
+                }
+
+                return {
+                    facturacion: acumulado.facturacion + precio,
+                    montoProfesional:
+                        acumulado.montoProfesional + montoProfesionalTurno,
+                    montoSalon:
+                        acumulado.montoSalon + montoSalonTurno
+                };
+            },
+
+            {
+                facturacion: 0,
+                montoProfesional: 0,
+                montoSalon: 0
+            }
+
         );
 
-
-        const porcentaje = Number(
-            grupo.profesional.porcentaje || 0
-        );
-
-
-        const montoProfesional =
-            facturacion * porcentaje / 100;
-
-
-        const montoSalon =
-            facturacion - montoProfesional;
+        const {
+            facturacion,
+            montoProfesional,
+            montoSalon
+        } = totales;
 
 
         const primeraFecha =
