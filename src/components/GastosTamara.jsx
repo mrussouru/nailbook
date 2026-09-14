@@ -4,10 +4,9 @@ import { supabase } from "../supabaseClient";
 const CATEGORIAS = [
   "Insumos",
   "Publicidad",
-  "Alquiler",
-  "Servicios",
-  "Comisiones",
   "Herramientas/equipamiento",
+  "Formación",
+  "Transporte",
   "Otros"
 ];
 
@@ -20,6 +19,7 @@ export default function GastosTamara() {
   const [gastos, setGastos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
+  const [editandoId, setEditandoId] = useState(null);
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     fecha: hoy,
@@ -69,6 +69,8 @@ export default function GastosTamara() {
   async function guardarGasto(e) {
     e.preventDefault();
 
+    if (guardando) return;
+
     const concepto = form.concepto.trim();
     const importe = Number(form.importe);
 
@@ -85,13 +87,19 @@ export default function GastosTamara() {
     setGuardando(true);
     setError("");
 
-    const { error } = await supabase.from("gastos_tamara").insert({
+    const payload = {
       fecha: form.fecha,
       categoria: form.categoria,
       concepto,
       importe,
       notas: form.notas.trim() || null
-    });
+    };
+
+    const consulta = editandoId
+      ? supabase.from("gastos_tamara").update(payload).eq("id", editandoId)
+      : supabase.from("gastos_tamara").insert(payload);
+
+    const { error } = await consulta;
 
     if (error) {
       console.error("Error guardando gasto de Tamara:", error);
@@ -107,9 +115,34 @@ export default function GastosTamara() {
       importe: "",
       notas: ""
     });
+    setEditandoId(null);
 
     setGuardando(false);
     await cargarGastos();
+  }
+
+  function editarGasto(gasto) {
+    setError("");
+    setEditandoId(gasto.id);
+    setForm({
+      fecha: gasto.fecha || "",
+      categoria: gasto.categoria || CATEGORIAS[0],
+      concepto: gasto.concepto || "",
+      importe: gasto.importe ?? "",
+      notas: gasto.notas || ""
+    });
+  }
+
+  function cancelarEdicion() {
+    setEditandoId(null);
+    setForm({
+      fecha: hoy,
+      categoria: "Insumos",
+      concepto: "",
+      importe: "",
+      notas: ""
+    });
+    setError("");
   }
 
   async function eliminarGasto(gasto) {
@@ -159,16 +192,26 @@ export default function GastosTamara() {
 
   const resumen = useMemo(() => {
     const total = gastos.reduce((acc, gasto) => acc + Number(gasto.importe || 0), 0);
-    const publicidad = gastos
-      .filter((gasto) => gasto.categoria === "Publicidad")
-      .reduce((acc, gasto) => acc + Number(gasto.importe || 0), 0);
+    const porCategoria = gastos.reduce((acumulado, gasto) => {
+      const categoria = gasto.categoria || "Otros";
+      acumulado[categoria] = (acumulado[categoria] || 0) + Number(gasto.importe || 0);
+      return acumulado;
+    }, {});
+
+    const categorias = Object.entries(porCategoria)
+      .filter(([, importe]) => importe > 0)
+      .sort(([, importeA], [, importeB]) => importeB - importeA);
 
     return {
       total,
-      publicidad,
-      otros: total - publicidad
+      publicidad: porCategoria.Publicidad || 0,
+      categorias
     };
   }, [gastos]);
+
+  const categoriasFormulario = form.categoria && !CATEGORIAS.includes(form.categoria)
+    ? [form.categoria, ...CATEGORIAS]
+    : CATEGORIAS;
 
   return (
     <div>
@@ -206,7 +249,7 @@ export default function GastosTamara() {
         }}
       >
         <h3 style={{ margin: "0 0 4px", color: "#cc2674", fontSize: 18 }}>
-          ➕ Registrar gasto
+          {editandoId ? "✏️ Editar gasto" : "➕ Registrar gasto"}
         </h3>
         <p style={{ margin: "0 0 16px", color: "#999", fontSize: 12 }}>
           Los gastos cargados impactan automáticamente en el dashboard.
@@ -234,7 +277,7 @@ export default function GastosTamara() {
               onChange={(e) => setForm({ ...form, categoria: e.target.value })}
               style={inputStyle}
             >
-              {CATEGORIAS.map((categoria) => (
+              {categoriasFormulario.map((categoria) => (
                 <option key={categoria} value={categoria}>
                   {categoria}
                 </option>
@@ -289,8 +332,27 @@ export default function GastosTamara() {
             opacity: guardando ? 0.65 : 1
           }}
         >
-          {guardando ? "Guardando..." : "Guardar gasto"}
+          {guardando ? "Guardando..." : editandoId ? "Guardar cambios" : "Guardar gasto"}
         </button>
+        {editandoId && (
+          <button
+            type="button"
+            onClick={cancelarEdicion}
+            disabled={guardando}
+            style={{
+              marginLeft: 10,
+              border: "1px solid #f0d9e8",
+              background: "#fff",
+              color: "#777",
+              borderRadius: 12,
+              padding: "11px 18px",
+              fontWeight: 800,
+              cursor: guardando ? "default" : "pointer"
+            }}
+          >
+            Cancelar edición
+          </button>
+        )}
       </form>
 
       <div
@@ -349,15 +411,32 @@ export default function GastosTamara() {
 
       <div
         style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-          gap: 12,
+          background: "#fff",
+          border: "1px solid #f0d9e8",
+          borderRadius: 16,
+          padding: 16,
           marginBottom: 18
         }}
       >
         <TarjetaResumen titulo="Gastos totales" valor={`$${dinero(resumen.total)}`} />
-        <TarjetaResumen titulo="Publicidad" valor={`$${dinero(resumen.publicidad)}`} />
-        <TarjetaResumen titulo="Otros gastos" valor={`$${dinero(resumen.otros)}`} />
+        {resumen.categorias.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <h3 style={{ margin: "0 0 10px", color: "#cc2674", fontSize: 16 }}>
+              Desglose por categoría
+            </h3>
+            <div style={{ display: "grid", gap: 7 }}>
+              {resumen.categorias.map(([categoria, importe]) => (
+                <div key={categoria} style={{ display: "flex", justifyContent: "space-between", gap: 12, color: "#555", fontSize: 14 }}>
+                  <span>{categoria}</span>
+                  <strong>${dinero(importe)}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div style={{ marginTop: 14, color: "#777", fontSize: 13 }}>
+          Publicidad: <strong>${dinero(resumen.publicidad)}</strong>
+        </div>
       </div>
 
       <div
@@ -449,6 +528,24 @@ export default function GastosTamara() {
                   <strong style={{ color: "#2d1f27", fontSize: 18 }}>
                     ${dinero(gasto.importe)}
                   </strong>
+
+                  <button
+                    type="button"
+                    onClick={() => editarGasto(gasto)}
+                    disabled={guardando}
+                    title="Editar gasto"
+                    style={{
+                      border: "1px solid #f0d9e8",
+                      background: "#fff",
+                      color: "#b05080",
+                      borderRadius: 10,
+                      padding: "7px 9px",
+                      cursor: guardando ? "default" : "pointer",
+                      fontWeight: 700
+                    }}
+                  >
+                    Editar
+                  </button>
 
                   <button
                     type="button"
