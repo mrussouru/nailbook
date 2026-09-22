@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useUsuario } from "../context/UsuarioContext";
 import { esDueno, esProfesional } from "../motores/auth";
 
@@ -15,6 +15,37 @@ export default function Header({
   const { usuario } = useUsuario();
 
   const [submenuAbierto, setSubmenuAbierto] = useState(null);
+  const menuRef = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!esMovil || !menuAbierto) return;
+
+    const menu = menuRef.current;
+    const viewport = window.visualViewport;
+    const ajustarAltura = () => {
+      // El viewport visual contempla las barras móviles y el zoom.
+      const bordeInferior = viewport
+        ? viewport.offsetTop + viewport.height
+        : window.innerHeight;
+      const disponible = bordeInferior - menu.getBoundingClientRect().top;
+      menu.style.maxHeight = `max(0px, calc(${disponible}px - env(safe-area-inset-bottom, 0px)))`;
+    };
+
+    ajustarAltura();
+    const observer = new ResizeObserver(ajustarAltura);
+    observer.observe(menu.parentElement);
+    window.addEventListener("resize", ajustarAltura);
+    window.addEventListener("scroll", ajustarAltura, { passive: true });
+    viewport?.addEventListener("resize", ajustarAltura);
+    viewport?.addEventListener("scroll", ajustarAltura);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", ajustarAltura);
+      window.removeEventListener("scroll", ajustarAltura);
+      viewport?.removeEventListener("resize", ajustarAltura);
+      viewport?.removeEventListener("scroll", ajustarAltura);
+    };
+  }, [esMovil, menuAbierto]);
 
   const navegar = (nuevaVista) => {
     setVista(nuevaVista);
@@ -247,13 +278,15 @@ export default function Header({
 
           {menuAbierto && (
             <div
+              ref={menuRef}
               style={{
                 position: "absolute",
                 top: "100%",
                 left: 10,
                 right: 10,
-                maxHeight: "calc(100vh - 90px)",
+                boxSizing: "border-box",
                 overflowY: "auto",
+                overscrollBehaviorY: "contain",
                 background: "#fff",
                 border: "1px solid #f0d9e8",
                 borderRadius: 14,

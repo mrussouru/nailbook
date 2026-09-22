@@ -46,7 +46,12 @@ export default function PanelInterno() {
   const [profesionales, setProfesionales] = useState([]);
   const [relacionesServicios, setRelacionesServicios] = useState([]);
   const [licencias, setLicencias] = useState([]);
-  const esMovil = window.innerWidth < 768
+  const [esMovil, setEsMovil] = useState(() => window.innerWidth < 768)
+  useEffect(() => {
+    const actualizarEsMovil = () => setEsMovil(window.innerWidth < 768)
+    window.addEventListener('resize', actualizarEsMovil)
+    return () => window.removeEventListener('resize', actualizarEsMovil)
+  }, [])
   const [profesionalSeleccionada, setProfesionalSeleccionada] = useState("todas");
   const hoy = formatDate(new Date())
   const manana = addDays(hoy, 1)
