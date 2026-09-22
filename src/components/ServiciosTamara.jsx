@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 
 const formularioVacio = {
@@ -15,8 +15,20 @@ export default function ServiciosTamara() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
   const [form, setForm] = useState(formularioVacio);
+  const formularioRef = useRef(null);
+  const [solicitudScroll, setSolicitudScroll] = useState(0);
 
   useEffect(() => { cargarServicios(); }, []);
+
+  useEffect(() => {
+    if (!solicitudScroll) return;
+    formularioRef.current?.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "instant"
+        : "smooth"
+    });
+  }, [solicitudScroll]);
 
   async function cargarServicios() {
     setCargando(true);
@@ -51,6 +63,8 @@ export default function ServiciosTamara() {
       orden: servicios.length ? Math.max(...servicios.map(s => Number(s.orden || 0))) + 1 : 1
     });
     setMostrarFormulario(true);
+    // Cada clic en Editar solicita scroll, incluso sobre el mismo servicio.
+    if (servicio) setSolicitudScroll(actual => actual + 1);
   }
 
   async function guardar(e) {
@@ -108,7 +122,7 @@ export default function ServiciosTamara() {
       {error && <p role="alert" style={{ ...tarjeta, color: "#a33", background: "#fff0f0" }}>{error}</p>}
       {mensaje && <p role="status" style={{ color: "#087a5a" }}>{mensaje}</p>}
       {mostrarFormulario && (
-        <form onSubmit={guardar} style={tarjeta}>
+        <form ref={formularioRef} onSubmit={guardar} style={tarjeta}>
           <h3 style={{ marginTop: 0, color: "#b05080" }}>{editandoId ? "Editar servicio" : "Nuevo servicio"}</h3>
           <fieldset disabled={guardando} style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
