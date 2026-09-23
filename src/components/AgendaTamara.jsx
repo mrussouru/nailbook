@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import SelectorCliente from "./SelectorCliente";
+
+const formularioVacio = {
+  cliente_id: null,
+  nombre: "",
+  telefono: "",
+  hora: "10:00",
+  trabajo_estimado: "",
+  precio_estimado: "",
+  origen_cliente: "",
+  notas: ""
+};
 
 export default function AgendaTamara() {
   const [turnos, setTurnos] = useState([]);
@@ -13,15 +25,7 @@ export default function AgendaTamara() {
 
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
 
-  const [form, setForm] = useState({
-    nombre: "",
-    telefono: "",
-    hora: "10:00",
-    trabajo_estimado: "",
-    precio_estimado: "",
-    origen_cliente: "",
-    notas: ""
-  });
+  const [form, setForm] = useState(formularioVacio);
 
   // =========================
   // DETALLE DE CITA
@@ -112,6 +116,11 @@ export default function AgendaTamara() {
   // NUEVA CITA
   // =========================
 
+  function cerrarFormulario() {
+    setMostrarFormulario(false);
+    setForm({ ...formularioVacio });
+  }
+
   async function guardarTurno(e) {
     e.preventDefault();
 
@@ -159,6 +168,7 @@ export default function AgendaTamara() {
       const { error } = await supabase.rpc(
         "crear_turno_tamara",
         {
+          p_cliente_id: form.cliente_id || null,
           p_nombre: nombre,
           p_telefono: telefono,
           p_telefono_normalizado: telefonoNormalizado,
@@ -177,17 +187,7 @@ export default function AgendaTamara() {
         throw error;
       }
 
-      setForm({
-        nombre: "",
-        telefono: "",
-        hora: "10:00",
-        trabajo_estimado: "",
-        precio_estimado: "",
-        origen_cliente: "",
-        notas: ""
-      });
-
-      setMostrarFormulario(false);
+      cerrarFormulario();
 
       await cargarTurnos();
     } catch (err) {
@@ -208,7 +208,7 @@ export default function AgendaTamara() {
 
   async function abrirTurno(turno) {
     setTurnoAbierto(turno);
-    setMostrarFormulario(false);
+    cerrarFormulario();
     setNuevoConcepto({
       servicio_id: "",
       concepto: "",
@@ -1079,11 +1079,14 @@ export default function AgendaTamara() {
         </div>
 
         <button
-          onClick={() =>
-            setMostrarFormulario(
-              !mostrarFormulario
-            )
-          }
+          onClick={() => {
+            if (mostrarFormulario) {
+              cerrarFormulario();
+            } else {
+              setForm({ ...formularioVacio });
+              setMostrarFormulario(true);
+            }
+          }}
           style={botonPrincipal}
         >
           {mostrarFormulario
@@ -1116,6 +1119,16 @@ export default function AgendaTamara() {
             Nueva cita
           </h3>
 
+          <SelectorCliente
+            value={{ cliente_id: form.cliente_id, cliente: form.nombre, telefono: form.telefono }}
+            onChange={({ cliente_id, cliente, telefono }) => setForm(actual => ({
+              ...actual,
+              cliente_id: cliente_id || null,
+              nombre: cliente || "",
+              telefono: telefono || ""
+            }))}
+            inputStyle={inputStyle}
+          >
           <div style={gridFormulario}>
             <Campo label="Nombre de la clienta *">
               <input
@@ -1145,7 +1158,10 @@ export default function AgendaTamara() {
                 inputMode="tel"
               />
             </Campo>
+          </div>
+          </SelectorCliente>
 
+          <div style={gridFormulario}>
             <Campo label="Fecha *">
               <input
                 type="date"
@@ -1259,9 +1275,7 @@ export default function AgendaTamara() {
           >
             <button
               type="button"
-              onClick={() =>
-                setMostrarFormulario(false)
-              }
+              onClick={cerrarFormulario}
               style={botonSecundario}
             >
               Cancelar
