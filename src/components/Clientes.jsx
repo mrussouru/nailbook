@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import EditarCliente from "./EditarCliente";
 
 export default function Clientes() {
 
@@ -10,6 +11,7 @@ export default function Clientes() {
   const [error, setError] = useState("");
 
   const [clienteSeleccionada, setClienteSeleccionada] = useState(null);
+  const [editandoClienteId, setEditandoClienteId] = useState(null);
   const [historial, setHistorial] = useState([]);
   const [seguimientos, setSeguimientos] = useState([]);
   const [cargandoSeguimientos, setCargandoSeguimientos] = useState(false);
@@ -104,6 +106,7 @@ useEffect(() => {
 
   async function cargarHistorial(cliente) {
 
+    setEditandoClienteId(null);
     setClienteSeleccionada(cliente);
     cargarSeguimientos(cliente.id);
     setNotasCliente(cliente.notas || "");
@@ -165,6 +168,28 @@ useEffect(() => {
     setCargandoSeguimientos(false);
   }
 
+
+  async function guardarDatosCliente({ cliente_id, nombre, telefono, telefono_normalizado }) {
+    const { error } = await supabase.rpc("actualizar_cliente", {
+      p_cliente_id: cliente_id,
+      p_nombre: nombre,
+      p_telefono: telefono,
+      p_telefono_normalizado: telefono_normalizado
+    });
+
+    if (error) {
+      throw new Error(error.message || "No se pudieron guardar los datos de la clienta.");
+    }
+
+    const datos = { nombre, telefono, telefono_normalizado };
+    setClientes(actuales => actuales.map(cliente =>
+      cliente.id === cliente_id ? { ...cliente, ...datos } : cliente
+    ));
+    setClienteSeleccionada(actual =>
+      actual?.id === cliente_id ? { ...actual, ...datos } : actual
+    );
+    setEditandoClienteId(actual => actual === cliente_id ? null : actual);
+  }
 
   async function guardarNotas() {
 
@@ -480,6 +505,7 @@ useEffect(() => {
 
         <button
           onClick={() => {
+            setEditandoClienteId(null);
             setClienteSeleccionada(null);
             setHistorial([]);
             setSeguimientos([]);
@@ -508,6 +534,27 @@ useEffect(() => {
           👤 {clienteSeleccionada.nombre}
         </h2>
 
+        <div style={{ marginBottom: 18 }}>
+          {editandoClienteId === clienteSeleccionada.id ? (
+            <EditarCliente
+              cliente={clienteSeleccionada}
+              onGuardar={guardarDatosCliente}
+              onCancelar={() => setEditandoClienteId(null)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditandoClienteId(clienteSeleccionada.id)}
+              style={{
+                border: "1px solid #f0d9e8", borderRadius: 10,
+                padding: "10px 16px", background: "#fff", color: "#b05080",
+                fontWeight: 700, cursor: "pointer"
+              }}
+            >
+              Editar datos
+            </button>
+          )}
+        </div>
 
         {/* RESUMEN DE CLIENTA */}
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import EditarCliente from "./EditarCliente";
 
 export default function ClientesTamara() {
   const [clientes, setClientes] = useState([]);
@@ -8,6 +9,9 @@ export default function ClientesTamara() {
   const [error, setError] = useState("");
 
   const [clienteSeleccionada, setClienteSeleccionada] = useState(null);
+  const [identidadCliente, setIdentidadCliente] = useState(null);
+  const [editandoClienteId, setEditandoClienteId] = useState(null);
+  const [errorIdentidad, setErrorIdentidad] = useState("");
   const [historial, setHistorial] = useState([]);
   const [cargandoHistorial, setCargandoHistorial] = useState(false);
   const [errorHistorial, setErrorHistorial] = useState("");
@@ -43,6 +47,9 @@ export default function ClientesTamara() {
   }
 
   async function abrirCliente(cliente) {
+    setIdentidadCliente(null);
+    setEditandoClienteId(null);
+    setErrorIdentidad("");
     setEditandoOrigen(false);
     setOrigenForm({ origen: "" });
     setClienteSeleccionada(cliente);
@@ -56,7 +63,7 @@ export default function ClientesTamara() {
       }),
       supabase
         .from("clientes")
-        .select("origen")
+        .select("id, nombre, telefono, telefono_normalizado, origen")
         .eq("id", cliente.cliente_id)
         .single()
     ]);
@@ -64,10 +71,15 @@ export default function ClientesTamara() {
     const { data, error } = resultadoHistorial;
 
     if (!resultadoCliente.error) {
+      setIdentidadCliente(resultadoCliente.data);
+      setClienteSeleccionada(actual => actual?.cliente_id === resultadoCliente.data.id
+        ? { ...actual, nombre: resultadoCliente.data.nombre, telefono: resultadoCliente.data.telefono }
+        : actual);
       setOrigenForm({
         origen: resultadoCliente.data?.origen || ""
       });
     } else {
+      setErrorIdentidad("No se pudieron cargar los datos para editar. Volvé a abrir la ficha para reintentar.");
       console.error("Error cargando origen de clienta:", resultadoCliente.error);
       setOrigenForm({
         origen: ""
@@ -90,6 +102,29 @@ export default function ClientesTamara() {
 
     setHistorial(data || []);
     setCargandoHistorial(false);
+  }
+
+  async function guardarDatosCliente({ cliente_id, nombre, telefono, telefono_normalizado }) {
+    const { error } = await supabase.rpc("actualizar_cliente", {
+      p_cliente_id: cliente_id,
+      p_nombre: nombre,
+      p_telefono: telefono,
+      p_telefono_normalizado: telefono_normalizado
+    });
+
+    if (error) {
+      throw new Error(error.message || "No se pudieron guardar los datos de la clienta.");
+    }
+
+    const datos = { nombre, telefono, telefono_normalizado };
+    setClientes(actuales => actuales.map(cliente =>
+      cliente.cliente_id === cliente_id ? { ...cliente, ...datos } : cliente
+    ));
+    setClienteSeleccionada(actual =>
+      actual?.cliente_id === cliente_id ? { ...actual, ...datos } : actual
+    );
+    setIdentidadCliente(actual => actual?.id === cliente_id ? { ...actual, ...datos } : actual);
+    setEditandoClienteId(actual => actual === cliente_id ? null : actual);
   }
 
   async function guardarOrigenCliente() {
@@ -122,6 +157,9 @@ export default function ClientesTamara() {
   }
 
   function volverAClientes() {
+    setIdentidadCliente(null);
+    setEditandoClienteId(null);
+    setErrorIdentidad("");
     setClienteSeleccionada(null);
     setHistorial([]);
     setErrorHistorial("");
@@ -302,6 +340,30 @@ export default function ClientesTamara() {
                 ? "visita"
                 : "visitas"}
             </div>
+          </div>
+
+          <div style={{ marginTop: 16 }}>
+            {editandoClienteId === clienteSeleccionada.cliente_id && identidadCliente?.id === clienteSeleccionada.cliente_id ? (
+              <EditarCliente
+                cliente={identidadCliente}
+                onGuardar={guardarDatosCliente}
+                onCancelar={() => setEditandoClienteId(null)}
+              />
+            ) : (
+              <button
+                type="button"
+                disabled={identidadCliente?.id !== clienteSeleccionada.cliente_id}
+                onClick={() => setEditandoClienteId(clienteSeleccionada.cliente_id)}
+                style={{
+                  border: "1px solid #f0d9e8", borderRadius: 10,
+                  padding: "10px 16px", background: "#fff", color: "#cc2674",
+                  fontWeight: 700, cursor: "pointer"
+                }}
+              >
+                Editar datos
+              </button>
+            )}
+            {errorIdentidad && <p role="alert" style={{ color: "#c62828", fontSize: 13 }}>{errorIdentidad}</p>}
           </div>
 
           {/* MÉTRICAS */}
