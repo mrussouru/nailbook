@@ -1,4 +1,5 @@
 import SelectorCliente from "./SelectorCliente";
+import CampoTelefono from "./CampoTelefono";
 import { HORARIOS } from "../helpers";
 import { obtenerDisponibilidadHoraria } from "../motores/MDI/disponibilidadHoraria";
 import { useEffect, useMemo } from "react";
@@ -13,6 +14,7 @@ export default function NuevoTurno(props) {
     servicioInfo,
     turnoQueChoca,
     agregarTurno,
+    guardandoTurno,
     setVista,
     Campo,
     inputStyle,
@@ -114,6 +116,7 @@ useEffect(() => {
   );
   
   const puedeConfirmar =
+  !guardandoTurno &&
   !!form.cliente?.trim() &&
   !!form.telefono?.trim() &&
   !!form.fecha &&
@@ -127,15 +130,19 @@ useEffect(() => {
           <div style={{ background:'#fff', borderRadius:18, padding:28, border:'2px solid #f0d9e8', maxWidth:480 }}>
             <SelectorCliente
               value={form}
-              onChange={(cliente) => setForm(actual => ({ ...actual, ...cliente }))}
+              onChange={(cliente) => setForm(actual => ({ ...actual, ...cliente, pais_telefono: "UY" }))}
               inputStyle={inputStyle}
             >
               <Campo label="Nombre de la cliente *">
                 <input value={form.cliente} onChange={e => setForm({...form, cliente:e.target.value})} placeholder="Ej: Laura Pérez" style={inputStyle} />
               </Campo>
-              <Campo label="Teléfono / WhatsApp *">
-                <input value={form.telefono} onChange={e => setForm({...form, telefono:e.target.value})} placeholder="Ej: 098544544" style={inputStyle} />
-              </Campo>
+              <CampoTelefono
+                pais={form.pais_telefono || "UY"}
+                numero={form.telefono || ""}
+                onChange={({ pais, numero }) => setForm(actual => ({ ...actual, pais_telefono: pais, telefono: numero }))}
+                requerido
+                disabled={guardandoTurno}
+              />
             </SelectorCliente>
             <Campo label="Fecha *">
               <input type="date" value={form.fecha} onChange={e => setForm({...form, fecha:e.target.value})} style={inputStyle} />
@@ -250,7 +257,7 @@ return (
                 style={{ flex:2, padding:11, borderRadius:12, border:'none',
                 background: puedeConfirmar ? '#b05080' : '#ddd',
                   color:'#fff', fontWeight:700, cursor:'pointer' }}>
-                Confirmar turno
+                {guardandoTurno ? "Guardando..." : "Confirmar turno"}
               </button>
             </div>
           </div>

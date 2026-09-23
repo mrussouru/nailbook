@@ -1,6 +1,7 @@
 import logo from './assets/logo.png'
-import { useState, useEffect, useMemo, useCallback } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
 import { supabase } from './supabaseClient'
+import { normalizarTelefono } from './utils/telefonos'
 import Calendario from "./components/Calendario"
 import ListadoTurnos from "./components/ListadoTurnos"
 import NuevoTurno from "./components/NuevoTurno"
@@ -38,7 +39,9 @@ export default function PanelInterno() {
   const [fechaSeleccionada, setFechaSeleccionada] = useState(formatDate(new Date()))
   const [mesActual, setMesActual] = useState(new Date())
   const [turnoSeleccionado, setTurnoSeleccionado] = useState(null)
-  const [form, setForm] = useState({ cliente_id: null, cliente:'', telefono:'', servicio:'',profesional_id:'', fecha: formatDate(new Date()), hora:'10:00', nota:'' })
+  const [form, setForm] = useState({ cliente_id: null, cliente:'', pais_telefono:'UY', telefono:'', servicio:'',profesional_id:'', fecha: formatDate(new Date()), hora:'10:00', nota:'' })
+  const [guardandoTurno, setGuardandoTurno] = useState(false)
+  const guardadoTurnoEnCurso = useRef(false)
   const [filtroEstado, setFiltroEstado] = useState('todos')
   const [busqueda, setBusqueda] = useState('')
   const [msgPreview, setMsgPreview] = useState(null)
@@ -175,6 +178,7 @@ consultaTurnos = consultaTurnos
   }
 
   async function agregarTurno() {
+    if (guardadoTurnoEnCurso.current) return;
 
     if (!form.cliente?.trim()) {
       alert("Ingresá el nombre de la clienta.");
@@ -184,6 +188,21 @@ consultaTurnos = consultaTurnos
     if (!form.telefono?.trim()) {
       alert("Ingresá el teléfono / WhatsApp de la clienta.");
       return;
+    }
+
+    let telefono = form.telefono;
+    let telefonoNormalizado = null;
+    if (!form.cliente_id) {
+      const resultado = normalizarTelefono({
+        pais: form.pais_telefono || "UY",
+        numero: form.telefono
+      });
+      if (!resultado.valido) {
+        alert("El teléfono no es válido. Revisá el número y el país seleccionado.");
+        return;
+      }
+      telefono = resultado.telefono;
+      telefonoNormalizado = resultado.telefono_normalizado;
     }
     
     if (!form.fecha) {
@@ -265,26 +284,29 @@ const servicioSeleccionado = servicios.find(
 
 const precioTurno = servicioSeleccionado?.precio ?? null;
   
-    const { error } = await supabase
-      .from("turnos")
-      .insert({
-        cliente_id: form.cliente_id || null,
-        cliente: form.cliente,
-        telefono: form.telefono,
-        servicio: form.servicio,
-        profesional_id: profesionalId,
-        fecha: form.fecha,
-        hora: form.hora,
-        estado: "pendiente",
-        origen: "interno",
-        nota: form.nota,
-        precio: precioTurno,
+    guardadoTurnoEnCurso.current = true;
+    setGuardandoTurno(true);
+    try {
+      const { data, error } = await supabase.rpc("crear_turno_interno", {
+        p_cliente_id: form.cliente_id || null,
+        p_cliente: form.cliente.trim(),
+        p_telefono: telefono,
+        p_telefono_normalizado: telefonoNormalizado,
+        p_servicio: form.servicio,
+        p_profesional_id: profesionalId,
+        p_fecha: form.fecha,
+        p_hora: form.hora,
+        p_estado: "pendiente",
+        p_origen: "interno",
+        p_nota: form.nota || "",
+        p_precio: precioTurno
       });
-  
-    if (error) {
-      alert("No se pudo guardar: " + error.message);
-      return;
-    }
+
+      if (error) throw error;
+      const resultado = Array.isArray(data) ? data[0] : data;
+      if (!resultado?.turno_id || !resultado?.cliente_id) {
+        throw new Error("No se pudo confirmar el guardado: faltan los identificadores del turno o la clienta. Revisá la agenda antes de reintentar.");
+      }
   
     await cargarTodo();
   
@@ -294,6 +316,7 @@ const precioTurno = servicioSeleccionado?.precio ?? null;
     setForm({
       cliente_id: null,
       cliente: "",
+      pais_telefono: "UY",
       telefono: "",
       servicio: servicios[0]?.id || "",
       profesional_id: "",
@@ -301,6 +324,12 @@ const precioTurno = servicioSeleccionado?.precio ?? null;
       hora: "10:00",
       nota: "",
     });
+    } catch (error) {
+      alert("No se pudo guardar: " + (error?.message || "Error desconocido"));
+    } finally {
+      guardadoTurnoEnCurso.current = false;
+      setGuardandoTurno(false);
+    }
   
   }
 
@@ -503,6 +532,7 @@ setTurnoSeleccionado={setTurnoSeleccionado}
           turnoQueChoca={turnoQueChoca}
 
           agregarTurno={agregarTurno}
+          guardandoTurno={guardandoTurno}
 
           setVista={setVista}
 
