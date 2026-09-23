@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { normalizarTelefono } from "../utils/telefonos";
 
 export default function SelectorCliente({ value, onChange, inputStyle, children }) {
   const [busqueda, setBusqueda] = useState("");
@@ -10,9 +11,8 @@ export default function SelectorCliente({ value, onChange, inputStyle, children 
   const [consultado, setConsultado] = useState(false);
   const texto = busqueda.trim();
   const esTelefono = /^[+\d\s().-]+$/.test(texto);
-  const termino = esTelefono
-    ? texto.replace(/\D/g, "").replace(/^(598|0)/, "")
-    : texto;
+  const digitos = texto.replace(/\D/g, "");
+  const termino = esTelefono ? digitos : texto;
   const puedeBuscar = termino.length >= 3;
 
   useEffect(() => {
@@ -26,13 +26,29 @@ export default function SelectorCliente({ value, onChange, inputStyle, children 
     setCargando(true);
     const timer = setTimeout(async () => {
       try {
-        // Escapar comodines para buscar el texto escrito literalmente.
-        const patron = termino.replace(/[\\%_]/g, "\\$&");
-        const { data, error: errorConsulta } = await supabase
+        let consulta = supabase
           .schema("public")
           .from("clientes")
-          .select("id, nombre, telefono")
-          .ilike(esTelefono ? "telefono_normalizado" : "nombre", `%${patron}%`)
+          .select("id, nombre, telefono");
+
+        if (esTelefono) {
+          const condiciones = new Set([`telefono_normalizado.ilike.%${digitos}%`]);
+          const normalizado = normalizarTelefono({ pais: "UY", numero: texto });
+          if (normalizado.valido && /^\d+$/.test(normalizado.telefono_normalizado)) {
+            condiciones.add(`telefono_normalizado.eq.${normalizado.telefono_normalizado}`);
+          }
+          // Comodidad de búsqueda, no normalización ni resolución de identidad.
+          if (!texto.startsWith("+") && digitos.startsWith("0") && digitos.length >= 4) {
+            condiciones.add(`telefono_normalizado.ilike.%${digitos.slice(1)}%`);
+          }
+          // Solo dígitos en los valores; columnas y operadores son constantes.
+          consulta = consulta.or([...condiciones].join(","));
+        } else {
+          const patron = termino.replace(/[\\%_]/g, "\\$&");
+          consulta = consulta.ilike("nombre", `%${patron}%`);
+        }
+
+        const { data, error: errorConsulta } = await consulta
           .order("nombre")
           .order("id")
           .limit(10);
@@ -53,7 +69,7 @@ export default function SelectorCliente({ value, onChange, inputStyle, children 
       vigente = false;
       clearTimeout(timer);
     };
-  }, [busqueda, termino, esTelefono, puedeBuscar, manual, value.cliente_id]);
+  }, [busqueda, texto, digitos, termino, esTelefono, puedeBuscar, manual, value.cliente_id]);
 
   function cambiarModo(nueva) {
     setBusqueda("");
