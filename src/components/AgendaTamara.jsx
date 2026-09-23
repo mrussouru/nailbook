@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import SelectorCliente from "./SelectorCliente";
+import CampoTelefono from "./CampoTelefono";
+import { normalizarTelefono } from "../utils/telefonos";
 
 const formularioVacio = {
   cliente_id: null,
   nombre: "",
+  pais_telefono: "UY",
   telefono: "",
   hora: "10:00",
   trabajo_estimado: "",
@@ -125,27 +128,33 @@ export default function AgendaTamara() {
     e.preventDefault();
 
     const nombre = form.nombre.trim();
-    const telefono = form.telefono.trim();
+    let telefono = form.telefono;
+    let telefonoNormalizado = null;
 
     if (!nombre) {
       alert("Ingresá el nombre de la clienta.");
       return;
     }
 
-    if (!telefono) {
-      alert("Ingresá el teléfono de la clienta.");
-      return;
+    if (!form.cliente_id) {
+      const resultado = normalizarTelefono({
+        pais: form.pais_telefono,
+        numero: form.telefono
+      });
+
+      if (!resultado.valido) {
+        alert(resultado.error === "TELEFONO_REQUERIDO"
+          ? "Ingresá el teléfono de la clienta."
+          : "El teléfono ingresado no es válido. Revisá el número y el país seleccionado.");
+        return;
+      }
+
+      telefono = resultado.telefono;
+      telefonoNormalizado = resultado.telefono_normalizado;
     }
 
     if (!fechaSeleccionada || !form.hora) {
       alert("Seleccioná fecha y hora.");
-      return;
-    }
-
-    const telefonoNormalizado = normalizarTelefono(telefono);
-
-    if (!telefonoNormalizado) {
-      alert("El teléfono ingresado no es válido.");
       return;
     }
 
@@ -1125,6 +1134,7 @@ export default function AgendaTamara() {
               ...actual,
               cliente_id: cliente_id || null,
               nombre: cliente || "",
+              pais_telefono: "UY",
               telefono: telefono || ""
             }))}
             inputStyle={inputStyle}
@@ -1144,20 +1154,17 @@ export default function AgendaTamara() {
               />
             </Campo>
 
-            <Campo label="WhatsApp / teléfono *">
-              <input
-                value={form.telefono}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    telefono: e.target.value
-                  })
-                }
-                style={inputStyle}
-                placeholder="Ej: 099 123 456"
-                inputMode="tel"
-              />
-            </Campo>
+            <CampoTelefono
+              pais={form.pais_telefono}
+              numero={form.telefono}
+              onChange={({ pais, numero }) => setForm(actual => ({
+                ...actual,
+                pais_telefono: pais,
+                telefono: numero
+              }))}
+              requerido
+              label="WhatsApp / teléfono"
+            />
           </div>
           </SelectorCliente>
 
@@ -1716,24 +1723,6 @@ function formatearDinero(valor) {
       maximumFractionDigits: 2
     }
   )}`;
-}
-
-function normalizarTelefono(telefono) {
-  let numero = String(
-    telefono || ""
-  ).replace(/\D/g, "");
-
-  if (!numero) return "";
-
-  if (numero.startsWith("598")) {
-    return numero;
-  }
-
-  if (numero.startsWith("0")) {
-    numero = numero.slice(1);
-  }
-
-  return `598${numero}`;
 }
 
 function estadoLabel(estado) {
