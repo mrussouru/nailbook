@@ -1048,4 +1048,6 @@ GRANT EXECUTE ON FUNCTION public.crear_turno_publico(uuid, text, text, text, dat
 
 DROP POLICY IF EXISTS "clientes pueden reservar" ON public.turnos;
 
+REVOKE INSERT ON TABLE public.turnos FROM anon;
+
 COMMIT;
