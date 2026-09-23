@@ -1,9 +1,11 @@
 import logo from './assets/logo.png'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from './supabaseClient'
 import { HORARIOS, DIAS_SEMANA, MESES, formatDate, parseDate, seSuperponeConOcupados } from './helpers'
 import { obtenerDisponibilidadHoraria } from "./motores/MDI/disponibilidadHoraria";
 import { useMemo } from "react";
+import CampoTelefono from "./components/CampoTelefono";
+import { normalizarTelefono } from "./utils/telefonos";
 
 export default function ReservaPublica() {
   const [servicios, setServicios] = useState([])
@@ -16,12 +18,14 @@ export default function ReservaPublica() {
   const [ocupados, setOcupados] = useState([])
   const [cliente, setCliente] = useState('')
   const [telefono, setTelefono] = useState('')
+  const [paisTelefono, setPaisTelefono] = useState('UY')
   const [nota, setNota] = useState('')
   const [cargando, setCargando] = useState(false)
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState('')
   const [relacionesServicios, setRelacionesServicios] = useState([]);
-  const [turnos, setTurnos] = useState([]);
+  const guardadoEnCurso = useRef(false);
+  const solicitudActiva = useRef(null);
   
 
   const hoy = formatDate(new Date())
@@ -50,13 +54,6 @@ export default function ReservaPublica() {
         setRelacionesServicios(data || []);
       });
 
-    supabase
-      .from("turnos")
-      .select("*")
-      .then(({ data }) => {
-        setTurnos(data || []);
-      });
-  
   }, [])
 
   const cargarOcupados = useCallback(async (f) => {
@@ -89,6 +86,22 @@ export default function ReservaPublica() {
       servicio: ocupado.servicio_id
     }));
   }, [ocupados, fecha]);
+
+  const firmaReserva = useCallback(() => JSON.stringify({
+    cliente: cliente.trim(),
+    telefono: telefono.trim(),
+    servicioId,
+    fecha,
+    hora,
+    profesionalId,
+    nota: nota.trim()
+  }), [cliente, telefono, servicioId, fecha, hora, profesionalId, nota]);
+
+  useEffect(() => {
+    if (solicitudActiva.current && solicitudActiva.current.firma !== firmaReserva()) {
+      solicitudActiva.current = null;
+    }
+  }, [firmaReserva]);
 
   const disponibilidadHoraria = useMemo(() => {
 
@@ -146,9 +159,17 @@ export default function ReservaPublica() {
   }
 
   async function confirmarReserva() {
+    if (guardadoEnCurso.current) return;
     setError('')
     if (!cliente.trim() || !telefono.trim() || !hora || !servicioId) {
       setError('Completá todos los campos obligatorios.')
+      return
+    }
+    const resultadoTelefono = normalizarTelefono({ pais: paisTelefono || 'UY', numero: telefono })
+    if (!resultadoTelefono.valido) {
+      setError(resultadoTelefono.error === 'TELEFONO_REQUERIDO'
+        ? 'Ingresá un teléfono.'
+        : 'Ingresá un teléfono válido con código de país.')
       return
     }
     const horarioSeleccionado = disponibilidadHoraria.find(
@@ -164,40 +185,57 @@ export default function ReservaPublica() {
     
     }
     const profesionalAsignada = horarioSeleccionado.profesional;
-    
-    
-    setCargando(true)
-    const { error: err } = await supabase
-  .from("turnos")
-  .insert({
 
-    cliente: cliente.trim(),
-
-    telefono: telefono.trim(),
-
-    servicio: servicioId,
-
-    profesional_id: profesionalAsignada?.id,
-
-    fecha,
-
-    hora,
-
-    estado: "pendiente",
-
-    origen: "publico",
-
-    nota: nota.trim(),
-
-    precio: servicioInfo?.precio ?? null,
-
-  });
-    setCargando(false)
-    if (err) {
-      setError('No se pudo reservar. Probá de nuevo en unos segundos.')
-      return
+    const firma = firmaReserva();
+    if (!solicitudActiva.current || solicitudActiva.current.firma !== firma) {
+      const uuid = globalThis.crypto?.randomUUID?.();
+      solicitudActiva.current = {
+        id: uuid || `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, '0').slice(-12)}`,
+        firma
+      };
     }
-    setEnviado(true)
+
+    guardadoEnCurso.current = true;
+    setCargando(true)
+    try {
+      const { data, error: err } = await supabase.rpc('crear_turno_publico', {
+        p_solicitud_id: solicitudActiva.current.id,
+        p_cliente: cliente.trim(),
+        p_telefono_e164: resultadoTelefono.telefono,
+        p_servicio: servicioId,
+        p_fecha: fecha,
+        p_hora: hora,
+        p_profesional_id: profesionalAsignada?.id || null,
+        p_nota: nota.trim()
+      });
+
+      if (err) {
+        const mensaje = String(err.message || '').toLowerCase();
+        if (mensaje.includes('horario') && mensaje.includes('disponible')) {
+          solicitudActiva.current = null;
+          setError('Ese horario ya no está disponible. Actualizamos la disponibilidad; elegí otro horario.')
+          await cargarOcupados(fecha)
+        } else {
+          setError('No se pudo confirmar la reserva. Podés reintentar sin cambiar los datos.')
+        }
+        return
+      }
+
+      const resultados = Array.isArray(data) ? data : (data ? [data] : []);
+      if (resultados.length !== 1 || !resultados[0]?.reserva_id || resultados[0].estado !== 'pendiente') {
+        setError('No se pudo confirmar la reserva. Podés reintentar sin cambiar los datos.')
+        return
+      }
+
+      setTelefono(resultadoTelefono.telefono)
+      solicitudActiva.current = null;
+      setEnviado(true)
+    } catch {
+      setError('No se pudo confirmar la reserva. Podés reintentar sin cambiar los datos.')
+    } finally {
+      guardadoEnCurso.current = false;
+      setCargando(false)
+    }
   }
 
   if (enviado) {
@@ -370,9 +408,17 @@ return (
         <input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Ej: Laura Pérez" style={inputStyle} />
       </Campo>
 
-      <Campo label="Tu WhatsApp *">
-        <input value={telefono} onChange={e => setTelefono(e.target.value)} placeholder="Ej: 098544544" style={inputStyle} />
-      </Campo>
+      <CampoTelefono
+        pais={paisTelefono}
+        numero={telefono}
+        onChange={({ pais, numero }) => {
+          setPaisTelefono(pais)
+          setTelefono(numero)
+        }}
+        requerido
+        disabled={cargando}
+        label="Tu WhatsApp"
+      />
 
       <Campo label="Nota (opcional)">
         <textarea value={nota} onChange={e => setNota(e.target.value)} rows={2} placeholder="Alguna preferencia o diseño en mente..." style={{...inputStyle, resize:'vertical'}} />
