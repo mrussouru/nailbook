@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import EditarCliente from "./EditarCliente";
+import { construirUrlWhatsApp } from "../utils/whatsapp";
 
 export default function Clientes() {
 
@@ -412,54 +413,11 @@ useEffect(() => {
 
 
   function abrirWhatsApp(cliente) {
+    const url = construirUrlWhatsApp(cliente.telefono_normalizado);
 
-    if (!cliente.telefono) {
-      alert("Esta clienta no tiene teléfono registrado.");
-      return;
-    }
+    if (!url) return;
 
-    let numero = cliente.telefono.replace(/\D/g, "");
-
-    if (numero.startsWith("0")) {
-      numero = "598" + numero.slice(1);
-    } else if (!numero.startsWith("598")) {
-      numero = "598" + numero;
-    }
-
-    const primerNombre =
-      (cliente.nombre || "").trim().split(" ")[0];
-
-    const estado = obtenerEstadoCliente(cliente);
-
-    let mensaje = "";
-
-    if (estado.tipo === "recuperar") {
-
-      mensaje =
-        `Hola ${primerNombre} 💕 ¿Cómo estás? ` +
-        `Hace un tiempito que no te vemos por Tamy Ayelen. ` +
-        `Si querés agendar nuevamente, escribinos y coordinamos tu próximo turno ✨`;
-
-    } else if (estado.tipo === "recurrente") {
-
-      mensaje =
-        `Hola ${primerNombre} 💕 ¿Cómo estás? ` +
-        `Si querés coordinar tu próximo turno en Tamy Ayelen, ` +
-        `escribinos y vemos juntas el mejor horario ✨`;
-
-    } else {
-
-      mensaje =
-        `Hola ${primerNombre} 💕 ¿Cómo estás? ` +
-        `Gracias por elegir Tamy Ayelen ✨ ` +
-        `Cuando quieras coordinar tu próximo turno, escribinos y te ayudamos 💗`;
-
-    }
-
-    const url =
-      `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
-
-    window.open(url, "_blank");
+    window.open(url, "_blank", "noopener,noreferrer");
   }
 
 
@@ -643,6 +601,7 @@ useEffect(() => {
         <button
           type="button"
           onClick={() => abrirWhatsApp(clienteSeleccionada)}
+          disabled={!construirUrlWhatsApp(clienteSeleccionada.telefono_normalizado)}
           style={{
             width: "100%",
             marginTop: 14,
@@ -653,10 +612,11 @@ useEffect(() => {
             color: "#fff",
             fontSize: 14,
             fontWeight: 800,
-            cursor: "pointer"
+            cursor: construirUrlWhatsApp(clienteSeleccionada.telefono_normalizado) ? "pointer" : "default",
+            opacity: construirUrlWhatsApp(clienteSeleccionada.telefono_normalizado) ? 1 : 0.5
           }}
         >
-          💬 Escribir por WhatsApp
+          ABRIR WHATSAPP
         </button>
 
 

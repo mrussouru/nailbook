@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import EditarCliente from "./EditarCliente";
+import { construirUrlWhatsApp } from "../utils/whatsapp";
 
 export default function ClientesTamara() {
   const [clientes, setClientes] = useState([]);
@@ -245,6 +246,12 @@ export default function ClientesTamara() {
     );
   }
 
+  function abrirWhatsApp(cliente) {
+    const url = construirUrlWhatsApp(cliente?.telefono_normalizado);
+    if (!url) return;
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+
   // =========================================================
   // FICHA DE CLIENTA
   // =========================================================
@@ -321,6 +328,25 @@ export default function ClientesTamara() {
                 {clienteSeleccionada.telefono ||
                   "Sin teléfono"}
               </div>
+
+              <button
+                type="button"
+                onClick={() => abrirWhatsApp(identidadCliente)}
+                disabled={!construirUrlWhatsApp(identidadCliente?.telefono_normalizado)}
+                style={{
+                  marginTop: 12,
+                  border: "none",
+                  borderRadius: 10,
+                  padding: "9px 14px",
+                  background: "#25D366",
+                  color: "#fff",
+                  fontWeight: 800,
+                  cursor: construirUrlWhatsApp(identidadCliente?.telefono_normalizado) ? "pointer" : "default",
+                  opacity: construirUrlWhatsApp(identidadCliente?.telefono_normalizado) ? 1 : 0.5
+                }}
+              >
+                ABRIR WHATSAPP
+              </button>
             </div>
 
             <div
