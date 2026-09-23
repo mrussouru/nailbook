@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 import SelectorCliente from "./SelectorCliente";
+import CampoTelefono from "./CampoTelefono";
+import { normalizarTelefono } from "../utils/telefonos";
 
 export default function AtencionEspontanea({
   servicios,
@@ -13,6 +15,7 @@ export default function AtencionEspontanea({
   const [form, setForm] = useState({
     cliente_id: null,
     cliente: "",
+    pais_telefono: "UY",
     telefono: "",
     servicio: "",
     profesional_id: "",
@@ -20,6 +23,7 @@ export default function AtencionEspontanea({
   });
 
   const [guardando, setGuardando] = useState(false);
+  const guardadoEnCurso = useRef(false);
 
   const esProfesional = usuario?.rol === "profesional";
 
@@ -72,6 +76,7 @@ export default function AtencionEspontanea({
 
 
   async function registrarAtencion() {
+    if (guardadoEnCurso.current) return;
 
     if (!form.cliente.trim()) {
       alert("Ingresá el nombre de la clienta.");
@@ -102,6 +107,27 @@ export default function AtencionEspontanea({
       return;
     }
 
+    const precio = Number(form.precio);
+    if (!Number.isFinite(precio) || precio < 0) {
+      alert("Ingresá un precio válido, mayor o igual a cero.");
+      return;
+    }
+
+    let telefono = form.telefono;
+    let telefonoNormalizado = null;
+    if (!form.cliente_id) {
+      const resultadoTelefono = normalizarTelefono({
+        pais: form.pais_telefono || "UY",
+        numero: form.telefono
+      });
+      if (!resultadoTelefono.valido) {
+        alert("El teléfono no es válido. Revisá el número y el país seleccionado.");
+        return;
+      }
+      telefono = resultadoTelefono.telefono;
+      telefonoNormalizado = resultadoTelefono.telefono_normalizado;
+    }
+
     const ahora = new Date();
 
     const fecha =
@@ -113,44 +139,56 @@ export default function AtencionEspontanea({
       `${String(ahora.getHours()).padStart(2, "0")}:` +
       `${String(ahora.getMinutes()).padStart(2, "0")}`;
 
+    let guardadoConfirmado = false;
+    guardadoEnCurso.current = true;
     setGuardando(true);
 
-    const { error } = await supabase
-      .from("turnos")
-      .insert({
-        cliente_id: form.cliente_id || null,
-        cliente: form.cliente.trim(),
-        telefono: (form.telefono || "").trim(),
-        servicio: form.servicio,
-        profesional_id: profesionalIdFinal,
-        fecha,
-        hora,
-        estado: "completado",
-        origen: "espontaneo",
-        precio: Number(form.precio),
-        nota: "Atención espontánea"
+    try {
+      const { data, error } = await supabase.rpc("crear_turno_interno", {
+        p_cliente_id: form.cliente_id || null,
+        p_cliente: form.cliente.trim(),
+        p_telefono: telefono,
+        p_telefono_normalizado: telefonoNormalizado,
+        p_servicio: form.servicio,
+        p_profesional_id: profesionalIdFinal,
+        p_fecha: fecha,
+        p_hora: hora,
+        p_estado: "completado",
+        p_origen: "espontaneo",
+        p_nota: "Atención espontánea",
+        p_precio: precio
       });
 
-    setGuardando(false);
+      if (error) throw error;
+      const resultado = Array.isArray(data) ? data[0] : data;
+      if (!resultado?.turno_id || !resultado?.cliente_id) {
+        throw new Error("No se pudo confirmar el guardado: faltan los identificadores del turno o la clienta. Revisá los turnos antes de reintentar.");
+      }
+      guardadoConfirmado = true;
 
-    if (error) {
+      setForm({
+        cliente_id: null,
+        cliente: "",
+        pais_telefono: "UY",
+        telefono: "",
+        servicio: "",
+        profesional_id: "",
+        precio: ""
+      });
+
+      await onAtencionRegistrada?.();
+      alert("✅ Atención registrada correctamente");
+    } catch (error) {
       console.error(error);
-      alert("No se pudo registrar la atención.");
-      return;
+      if (guardadoConfirmado) {
+        alert("La atención se registró correctamente, pero no se pudo actualizar la vista. Actualizá la pantalla antes de volver a intentarlo.");
+      } else {
+        alert("No se pudo registrar la atención: " + (error?.message || "Error desconocido"));
+      }
+    } finally {
+      guardadoEnCurso.current = false;
+      setGuardando(false);
     }
-
-    setForm({
-      cliente_id: null,
-      cliente: "",
-      telefono: "",
-      servicio: "",
-      profesional_id: "",
-      precio: ""
-    });
-
-    await onAtencionRegistrada?.();
-
-    alert("✅ Atención registrada correctamente");
   }
 
 
@@ -178,7 +216,7 @@ export default function AtencionEspontanea({
 
         <SelectorCliente
           value={form}
-          onChange={(cliente) => setForm(actual => ({ ...actual, ...cliente }))}
+          onChange={(cliente) => setForm(actual => ({ ...actual, ...cliente, pais_telefono: "UY" }))}
           inputStyle={inputStyle}
         >
         {/* CLIENTE */}
@@ -209,21 +247,16 @@ export default function AtencionEspontanea({
 
         <div style={{ marginBottom: 16 }}>
 
-          <label style={labelStyle}>
-            WhatsApp *
-          </label>
-
-          <input
-            type="text"
-            placeholder="Ej: 098544544"
-            value={form.telefono}
-            onChange={e =>
-              setForm({
-                ...form,
-                telefono: e.target.value
-              })
-            }
-            style={inputStyle}
+          <CampoTelefono
+            pais={form.pais_telefono || "UY"}
+            numero={form.telefono || ""}
+            onChange={({ pais, numero }) => setForm(actual => ({
+              ...actual,
+              pais_telefono: pais,
+              telefono: numero
+            }))}
+            requerido
+            disabled={guardando}
           />
 
         </div>
