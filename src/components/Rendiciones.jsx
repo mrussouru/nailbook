@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
     cargarRendiciones,
@@ -19,6 +19,11 @@ export default function Rendiciones() {
     const [rendiciones, setRendiciones] = useState([]);
     const [rendicionSeleccionada, setRendicionSeleccionada] = useState(null);
     const [detalle, setDetalle] = useState([]);
+    const [cargandoDetalle, setCargandoDetalle] = useState(false);
+    const [errorDetalle, setErrorDetalle] = useState("");
+    const [exportando, setExportando] = useState(false);
+    const [errorPdf, setErrorPdf] = useState("");
+    const solicitudDetalle = useRef(0);
     const [hayPendientes, setHayPendientes] = useState(false);
 
     const [filtroEstado, setFiltroEstado] = useState("todas");
@@ -56,13 +61,41 @@ export default function Rendiciones() {
 
 
     async function abrirDetalle(r) {
-
+        const solicitud = ++solicitudDetalle.current;
         setRendicionSeleccionada(r);
+        setDetalle([]);
+        setErrorDetalle("");
+        setErrorPdf("");
+        setCargandoDetalle(true);
+        try {
+            const datos = await cargarDetalleRendicion(r);
+            if (solicitud === solicitudDetalle.current) setDetalle(datos);
+        } catch {
+            if (solicitud === solicitudDetalle.current) {
+                setErrorDetalle("No se pudo cargar el detalle. Volvé a abrir la rendición para reintentar.");
+            }
+        } finally {
+            if (solicitud === solicitudDetalle.current) setCargandoDetalle(false);
+        }
+    }
 
-        const datos = await cargarDetalleRendicion(r);
-
-        setDetalle(datos);
-
+    async function descargarPdf() {
+        if (cargandoDetalle || errorDetalle || exportando) return;
+        const solicitud = solicitudDetalle.current;
+        setExportando(true);
+        setErrorPdf("");
+        try {
+            const { crearPdfRendicion } = await import("../utils/rendicionPdf.js");
+            if (solicitud !== solicitudDetalle.current) return;
+            const { doc, nombreArchivo } = crearPdfRendicion(rendicionSeleccionada, detalle);
+            doc.save(nombreArchivo);
+        } catch {
+            if (solicitud === solicitudDetalle.current) {
+                setErrorPdf("No se pudo generar el PDF. Intentá nuevamente.");
+            }
+        } finally {
+            setExportando(false);
+        }
     }
 
 
@@ -486,7 +519,7 @@ export default function Rendiciones() {
                         position: "fixed",
                         top: 0,
                         right: 0,
-                        width: 420,
+                        width: "min(420px, 100%)",
                         height: "100vh",
                         background: "#fff",
                         borderLeft: "2px solid #f0d9e8",
@@ -502,6 +535,7 @@ export default function Rendiciones() {
                     <button
                         onClick={() => {
 
+                            solicitudDetalle.current += 1;
                             setRendicionSeleccionada(null);
 
                             setDetalle([]);
@@ -549,6 +583,28 @@ export default function Rendiciones() {
 
                     <hr />
 
+
+                    <button
+                        type="button"
+                        onClick={descargarPdf}
+                        disabled={cargandoDetalle || !!errorDetalle || exportando}
+                        style={{
+                            width: "100%",
+                            padding: "12px 16px",
+                            border: "none",
+                            borderRadius: 10,
+                            background: "#b05080",
+                            color: "#fff",
+                            fontWeight: 700,
+                            cursor: cargandoDetalle || errorDetalle || exportando ? "default" : "pointer",
+                            opacity: cargandoDetalle || errorDetalle || exportando ? 0.6 : 1
+                        }}
+                    >
+                        {exportando ? "Generando PDF…" : "📄 Descargar PDF"}
+                    </button>
+                    {cargandoDetalle && <p role="status">Cargando turnos…</p>}
+                    {errorDetalle && <p role="alert">{errorDetalle}</p>}
+                    {errorPdf && <p role="alert">{errorPdf}</p>}
 
                     <h3>
                         Turnos

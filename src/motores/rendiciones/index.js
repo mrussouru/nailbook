@@ -90,20 +90,28 @@ export async function marcarComoPagada(id) {
 
 export async function cargarDetalleRendicion(rendicion) {
 
-    const { data, error } = await supabase
-        .from("turnos")
-        .select(`
-            *,
-            servicios(*),
-            profesionales(*)
-        `)
-        .eq("rendicion_id", rendicion.id)
-        .order("fecha", { ascending: true })
-        .order("hora", { ascending: true });
+    const turnos = [];
+    const tamanoPagina = 500;
+    // Leer todas las páginas sin cambiar los vínculos ni los datos financieros.
+    while (true) {
+        const { data, error } = await supabase
+            .from("turnos")
+            .select(`
+                *,
+                servicios(*),
+                profesionales(*)
+            `)
+            .eq("rendicion_id", rendicion.id)
+            .order("fecha", { ascending: true })
+            .order("hora", { ascending: true })
+            .order("id", { ascending: true })
+            .range(turnos.length, turnos.length + tamanoPagina - 1);
 
-    if (error) throw error;
-
-    return data || [];
+        if (error) throw error;
+        if (!data?.length) break;
+        turnos.push(...data);
+    }
+    return turnos;
 
 }
 
