@@ -1,96 +1,49 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { METRICAS, cargarDashboardTamara, calcularVariacion, fechaValida } from "../utils/dashboardTamara";
+
+const tarjeta = { background: "#fff", border: "1px solid #f0d9e8", borderRadius: 16, padding: 18, marginBottom: 18, minWidth: 0 };
+const grilla = { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 210px), 1fr))", gap: 12 };
+const cargaInicial = { cargando: true, error: "", datos: null };
+
+// Agrupación visual: las definiciones y cálculos siguen en METRICAS.
+const gruposKpi = [
+  { titulo: "💰 Rentabilidad", principal: true, campos: ["facturacion", "gastos_totales", "ganancia", "margen_porcentaje"] },
+  { titulo: "💼 Operación", campos: ["atenciones", "ticket_promedio"] },
+  { titulo: "👩 Clientas atendidas", campos: ["clientas_nuevas", "clientas_recurrentes"] },
+  { titulo: "🚫 Ausencias", campos: ["ausencias", "valor_perdido_ausencias"] }
+];
+const iconosKpi = {
+  facturacion: "💰", gastos_totales: "💸", ganancia: "📈", margen_porcentaje: "📊",
+  atenciones: "💼", ticket_promedio: "🎟️", clientas_nuevas: "✨",
+  clientas_recurrentes: "🔁", ausencias: "🚫", valor_perdido_ausencias: "💸"
+};
 
 export default function DashboardTamara() {
   const hoy = fechaLocal(new Date());
-  const inicioMes = `${hoy.slice(0, 7)}-01`;
-
-  const [desde, setDesde] = useState(inicioMes);
+  const [desde, setDesde] = useState(`${hoy.slice(0, 7)}-01`);
   const [hasta, setHasta] = useState(hoy);
-  const [datos, setDatos] = useState(null);
-  const [rentabilidad, setRentabilidad] = useState(null);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState("");
-
-  const [servicios, setServicios] = useState([]);
-  const [cargandoServicios, setCargandoServicios] = useState(true);
-  const [errorServicios, setErrorServicios] = useState("");
+  const [intento, setIntento] = useState(0);
+  const [resultado, setResultado] = useState({});
+  const clave = `${desde}/${hasta}/${intento}`;
+  const errorPeriodo = !fechaValida(desde) || !fechaValida(hasta)
+    ? "Seleccioná las fechas desde y hasta."
+    : desde > hasta ? "La fecha desde no puede ser posterior a la fecha hasta." : "";
 
   useEffect(() => {
-    let vigente = true;
-    setServicios([]);
-    setErrorServicios("");
-    if (!desde || !hasta || desde > hasta) {
-      setCargandoServicios(false);
-      return;
-    }
+    if (errorPeriodo) return;
+    const solicitud = cargarDashboardTamara(supabase, desde, hasta, (seccion, estado) => {
+      setResultado(actual => ({ ...actual, [seccion]: { ...estado, clave } }));
+    });
+    return solicitud.cancelar;
+  }, [desde, hasta, clave, errorPeriodo]);
 
-    async function cargarServicios() {
-      setCargandoServicios(true);
-      try {
-        const { data, error } = await supabase.rpc("estadisticas_servicios_tamara", {
-          p_desde: desde,
-          p_hasta: hasta
-        });
-        if (!vigente) return;
-        if (error) throw error;
-        setServicios(data || []);
-      } catch {
-        if (vigente) setErrorServicios("No se pudo cargar el rendimiento por servicio. Intentá nuevamente más tarde.");
-      } finally {
-        if (vigente) setCargandoServicios(false);
-      }
-    }
-
-    cargarServicios();
-    return () => { vigente = false; };
-  }, [desde, hasta]);
-
-  useEffect(() => {
-    cargarDashboard();
-  }, [desde, hasta]);
-
-  async function cargarDashboard() {
-    if (!desde || !hasta) return;
-
-    if (desde > hasta) {
-      setError("La fecha desde no puede ser posterior a la fecha hasta.");
-      setDatos(null);
-      setRentabilidad(null);
-      setCargando(false);
-      return;
-    }
-
-    setCargando(true);
-    setError("");
-
-    const [resultadoDashboard, resultadoRentabilidad] = await Promise.all([
-      supabase.rpc("dashboard_tamara", {
-        p_desde: desde,
-        p_hasta: hasta
-      }),
-      supabase.rpc("rentabilidad_tamara", {
-        p_desde: desde,
-        p_hasta: hasta
-      })
-    ]);
-
-    if (resultadoDashboard.error || resultadoRentabilidad.error) {
-      console.error(
-        "Error cargando dashboard de Tamara:",
-        resultadoDashboard.error || resultadoRentabilidad.error
-      );
-      setError("No se pudieron cargar las métricas de Tamara.");
-      setDatos(null);
-      setRentabilidad(null);
-      setCargando(false);
-      return;
-    }
-
-    setDatos(resultadoDashboard.data?.[0] || null);
-    setRentabilidad(resultadoRentabilidad.data?.[0] || null);
-    setCargando(false);
-  }
+  // Nunca mostrar resultados de otro rango, ni siquiera antes del cleanup del efecto.
+  const seccion = nombre => resultado[nombre]?.clave === clave ? resultado[nombre] : cargaInicial;
+  const resumen = seccion("resumen");
+  const evolucion = seccion("evolucion");
+  const servicios = seccion("servicios");
+  const datos = resumen.datos;
 
   function seleccionarEsteMes() {
     const fechaHoy = fechaLocal(new Date());
@@ -127,395 +80,162 @@ export default function DashboardTamara() {
     setHasta(fechaLocal(fechaHasta));
   }
 
-  const facturacion = Number(
-    rentabilidad?.facturacion ?? datos?.facturacion ?? 0
-  );
-  const gastosTotales = Number(rentabilidad?.gastos_totales || 0);
-  const gastosPublicidad = Number(rentabilidad?.gastos_publicidad || 0);
-  const ganancia = Number(rentabilidad?.ganancia || 0);
-  const margen = Number(rentabilidad?.margen_porcentaje || 0);
-
-  const atenciones = Number(datos?.atenciones || 0);
-  const ticketPromedio = Number(datos?.ticket_promedio || 0);
-  const nuevas = Number(datos?.clientas_nuevas || 0);
-  const recurrentes = Number(datos?.clientas_recurrentes || 0);
-  const ausencias = Number(datos?.ausencias || 0);
-  const valorPerdido = Number(datos?.valor_perdido_ausencias || 0);
-
-  const totalClientas = nuevas + recurrentes;
-
-  const porcentajeNuevas =
-    totalClientas > 0 ? Math.round((nuevas / totalClientas) * 100) : 0;
-
-  const porcentajeRecurrentes =
-    totalClientas > 0 ? Math.round((recurrentes / totalClientas) * 100) : 0;
+  const tramoDistinto = datos?.comparacion_disponible &&
+    (datos.comparacion_actual_desde !== desde || datos.comparacion_actual_hasta !== hasta);
 
   return (
     <div>
-      <div style={{ marginBottom: 22 }}>
-        <h2
-          style={{
-            margin: "0 0 4px",
-            color: "#cc2674",
-            fontSize: 26
-          }}
-        >
-          📊 Dashboard de Tamara
-        </h2>
-
-        <p
-          style={{
-            margin: 0,
-            color: "#888",
-            fontSize: 14
-          }}
-        >
-          Facturación, rentabilidad, clientas y rendimiento de sus atenciones.
-        </p>
-      </div>
-
-      <div
-        style={{
-          background: "#fff",
-          border: "1px solid #f0d9e8",
-          borderRadius: 16,
-          padding: 16,
-          marginBottom: 18
-        }}
-      >
-        <div
-          style={{
-            fontSize: 11,
-            fontWeight: 800,
-            color: "#cc2674",
-            textTransform: "uppercase",
-            marginBottom: 10
-          }}
-        >
-          Período
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            flexWrap: "wrap",
-            marginBottom: 14
-          }}
-        >
+      <h2 style={{ margin: "0 0 4px", color: "#cc2674", fontSize: 26 }}>📊 Dashboard de Tamara</h2>
+      <p style={{ color: "#777", fontSize: 14 }}>Facturación registrada, rentabilidad y atenciones. Los importes registrados no acreditan pagos efectivos.</p>
+      <section style={tarjeta} aria-label="Período">
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
           <BotonPeriodo onClick={seleccionarEsteMes}>Este mes</BotonPeriodo>
-          <BotonPeriodo onClick={seleccionarMesAnterior}>
-            Mes anterior
-          </BotonPeriodo>
-          <BotonPeriodo onClick={seleccionarUltimos30Dias}>
-            Últimos 30 días
-          </BotonPeriodo>
+          <BotonPeriodo onClick={seleccionarMesAnterior}>Mes anterior</BotonPeriodo>
+          <BotonPeriodo onClick={seleccionarUltimos30Dias}>Últimos 30 días</BotonPeriodo>
         </div>
-
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-            gap: 12
-          }}
-        >
+        <p style={{ color: "#777", fontSize: 12 }}>Período personalizado: ajustá Desde y Hasta.</p>
+        <div style={grilla}>
           <CampoFecha label="Desde" value={desde} onChange={setDesde} />
           <CampoFecha label="Hasta" value={hasta} onChange={setHasta} />
         </div>
-      </div>
-
-      {error && (
-        <div
-          style={{
-            background: "#fff0f2",
-            color: "#c62828",
-            borderRadius: 12,
-            padding: 14,
-            marginBottom: 18
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {cargando && !error && (
-        <div
-          style={{
-            background: "#fff",
-            border: "1px solid #f0d9e8",
-            borderRadius: 16,
-            padding: 45,
-            textAlign: "center",
-            color: "#999"
-          }}
-        >
-          Cargando métricas...
-        </div>
-      )}
-
-      {!cargando && !error && datos && rentabilidad && (
+      </section>
+      {errorPeriodo ? <p role="alert" style={{ color: "#c62828" }}>{errorPeriodo}</p> : (
         <>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
-              gap: 12,
-              marginBottom: 22
-            }}
-          >
-            <TarjetaMetrica
-              icono="💰"
-              titulo="Facturación"
-              valor={`$${dinero(facturacion)}`}
-              detalle="Cobrado en atenciones completadas"
-              destacada
-            />
-
-            <TarjetaMetrica
-              icono="💸"
-              titulo="Gastos"
-              valor={`$${dinero(gastosTotales)}`}
-              detalle="Gastos registrados en el período"
-            />
-
-            <TarjetaMetrica
-              icono="📈"
-              titulo="Ganancia"
-              valor={`$${dinero(ganancia)}`}
-              detalle="Facturación menos gastos"
-            />
-
-            <TarjetaMetrica
-              icono="📊"
-              titulo="Margen"
-              valor={`${numero(margen)}%`}
-              detalle="Ganancia sobre facturación"
-            />
-          </div>
-
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #f0d9e8",
-              borderRadius: 16,
-              padding: 18,
-              marginBottom: 18
-            }}
-          >
-            <h3
-              style={{
-                margin: "0 0 4px",
-                color: "#cc2674",
-                fontSize: 18
-              }}
-            >
-              💼 Operación
-            </h3>
-
-            <p
-              style={{
-                margin: "0 0 16px",
-                color: "#999",
-                fontSize: 12
-              }}
-            >
-              Producción, ticket y gasto en adquisición.
-            </p>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: 12
-              }}
-            >
-              <TarjetaSecundaria
-                titulo="Atenciones"
-                valor={atenciones}
-                detalle="Atenciones completadas"
-              />
-
-              <TarjetaSecundaria
-                titulo="Ticket promedio"
-                valor={`$${dinero(ticketPromedio)}`}
-                detalle="Promedio cobrado por atención"
-              />
-
-              <TarjetaSecundaria
-                titulo="Publicidad"
-                valor={`$${dinero(gastosPublicidad)}`}
-                detalle="Gasto registrado como Publicidad"
-              />
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #f0d9e8",
-              borderRadius: 16,
-              padding: 18,
-              marginBottom: 18
-            }}
-          >
-            <h3
-              style={{
-                margin: "0 0 4px",
-                color: "#cc2674",
-                fontSize: 18
-              }}
-            >
-              👩 Clientas atendidas
-            </h3>
-
-            <p
-              style={{
-                margin: "0 0 16px",
-                color: "#999",
-                fontSize: 12
-              }}
-            >
-              Nuevas clientas y clientas que volvieron.
-            </p>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: 12
-              }}
-            >
-              <TarjetaSecundaria
-                titulo="Clientas nuevas"
-                valor={nuevas}
-                detalle={
-                  totalClientas > 0
-                    ? `${porcentajeNuevas}% de las clientas del período`
-                    : "Sin clientas en el período"
-                }
-              />
-
-              <TarjetaSecundaria
-                titulo="Clientas recurrentes"
-                valor={recurrentes}
-                detalle={
-                  totalClientas > 0
-                    ? `${porcentajeRecurrentes}% de las clientas del período`
-                    : "Sin clientas en el período"
-                }
-              />
-
-              <TarjetaSecundaria
-                titulo="Clientas únicas"
-                valor={totalClientas}
-                detalle="Con al menos una atención completada"
-              />
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: "#fff",
-              border: "1px solid #f0d9e8",
-              borderRadius: 16,
-              padding: 18
-            }}
-          >
-            <h3
-              style={{
-                margin: "0 0 4px",
-                color: "#cc2674",
-                fontSize: 18
-              }}
-            >
-              🚫 Ausencias
-            </h3>
-
-            <p
-              style={{
-                margin: "0 0 16px",
-                color: "#999",
-                fontSize: 12
-              }}
-            >
-              Citas en las que la clienta no se presentó.
-            </p>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-                gap: 12
-              }}
-            >
-              <TarjetaSecundaria
-                titulo="No se presentaron"
-                valor={ausencias}
-                detalle={
-                  ausencias === 1
-                    ? "1 cita ausente"
-                    : `${ausencias} citas ausentes`
-                }
-              />
-
-              <TarjetaSecundaria
-                titulo="Valor potencial perdido"
-                valor={`$${dinero(valorPerdido)}`}
-                detalle="Según precio estimado de las citas"
-              />
-            </div>
-          </div>
-        </>
-      )}
-
-      {desde && hasta && desde <= hasta && (
-        <section style={{
-          background: "#fff", border: "1px solid #f0d9e8",
-          borderRadius: 16, padding: 18, marginTop: 18
-        }}>
-          <h3 style={{ margin: "0 0 16px", color: "#cc2674", fontSize: 18 }}>
-            Rendimiento por servicio
-          </h3>
-          {cargandoServicios ? (
-            <p role="status" style={{ color: "#999", fontSize: 13 }}>Cargando servicios...</p>
-          ) : errorServicios ? (
-            <p role="alert" style={{ color: "#c62828", fontSize: 13 }}>{errorServicios}</p>
-          ) : servicios.length === 0 ? (
-            <p style={{ color: "#999", fontSize: 13 }}>No hay servicios completados en este período.</p>
-          ) : (
-            <div style={{ display: "grid", gap: 12 }}>
-              {servicios.map((servicio, index) => {
-                const cantidad = Number(servicio.cantidad || 0);
-                const porcentaje = Number(servicio.porcentaje_facturacion || 0);
-                return (
-                  <div key={servicio.servicio_id ?? `manual-${index}`} style={{
-                    background: "#fff7fb", borderRadius: 12, padding: 14, minWidth: 0
-                  }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                      <strong style={{ color: "#2d1f27", overflowWrap: "anywhere" }}>{servicio.nombre}</strong>
-                      <span style={{ color: "#777", fontSize: 13 }}>
-                        {cantidad} {cantidad === 1 ? "servicio" : "servicios"}
-                      </span>
-                    </div>
-                    <div style={{ display: "flex", gap: "8px 20px", flexWrap: "wrap", marginTop: 10, fontSize: 14 }}>
-                      <strong style={{ color: "#cc2674" }}>${dinero(servicio.facturacion)} facturados</strong>
-                      <span style={{ color: "#777" }}>Promedio ${dinero(servicio.importe_promedio)}</span>
-                    </div>
-                    <div style={{ color: "#777", fontSize: 12, marginTop: 12 }}>
-                      {porcentaje.toLocaleString("es-UY", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% de la facturación
-                    </div>
-                    <div aria-hidden="true" style={{ background: "#f0d9e8", borderRadius: 4, height: 6, marginTop: 6, overflow: "hidden" }}>
-                      <div style={{ background: "#cc2674", height: "100%", width: `${Math.min(100, Math.max(0, porcentaje))}%` }} />
-                    </div>
+          <section style={tarjeta} aria-label="Resumen del período">
+            <h3 style={{ color: "#cc2674", marginTop: 0 }}>Resumen del período</h3>
+            <p>{rango(desde, hasta)}</p>
+            <Estado estado={resumen} reintentar={() => setIntento(i => i + 1)} />
+            {datos && (
+              <>
+                {datos.comparacion_disponible ? (
+                  <div style={{ background: "#fff7fb", padding: 14, borderRadius: 12, marginBottom: 16 }}>
+                    <strong>📊 Comparación: {rango(datos.comparacion_actual_desde, datos.comparacion_actual_hasta)} vs {rango(datos.comparacion_desde, datos.comparacion_hasta)}</strong>
+                    <p style={{ fontSize: 13, marginBottom: 0 }}>
+                      {tramoDistinto
+                        ? "La comparación usa un tramo más corto. Los valores principales siguen mostrando todo el período seleccionado."
+                        : "Las variaciones comparan los dos rangos indicados."}
+                    </p>
                   </div>
+                ) : <p style={{ color: "#777", fontSize: 13 }}>Sin comparación automática para este período.</p>}
+                {gruposKpi.map(grupo => (
+                  <section key={grupo.titulo} aria-label={grupo.titulo} style={{
+                    marginTop: grupo.principal ? 20 : 28,
+                    paddingTop: grupo.principal ? 0 : 20,
+                    borderTop: grupo.principal ? "none" : "1px solid #f0d9e8",
+                    minWidth: 0
+                  }}>
+                    <h4 style={{ color: "#cc2674", fontSize: grupo.principal ? 19 : 16, margin: "0 0 12px", fontWeight: 800 }}>
+                      {grupo.titulo}
+                    </h4>
+                    <div style={grilla}>
+                      {METRICAS.filter(metrica => grupo.campos.includes(metrica.campo)).map(metrica => (
+                        <TarjetaMetrica key={metrica.campo} titulo={metrica.titulo}
+                          icono={iconosKpi[metrica.campo]} principal={grupo.principal}
+                          destacada={metrica.campo === "facturacion"}
+                          valor={valorMetrica(datos[metrica.campo], metrica.tipo)} detalle={metrica.detalle}>
+                          {datos.comparacion_disponible && <Comparacion metrica={metrica} datos={datos} />}
+                        </TarjetaMetrica>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+                <div style={{ marginTop: 16 }}>
+                  <TarjetaSecundaria titulo="📣 Publicidad" valor={valorMetrica(datos.gastos_publicidad, "dinero")}
+                    detalle="Incluida en los gastos totales; no se resta nuevamente de la ganancia." />
+                </div>
+              </>
+            )}
+          </section>
+
+          <section style={tarjeta} aria-label="Evolución mensual">
+            <h3 style={{ color: "#cc2674", marginTop: 0 }}>📈 Evolución de los últimos 6 meses</h3>
+            <p style={{ color: "#777", fontSize: 13 }}>Seis meses hasta {fechaTexto(hasta)}. El último mes incluye solo las fechas hasta ese día.</p>
+            <Estado estado={evolucion} reintentar={() => setIntento(i => i + 1)} />
+            {evolucion.datos && <div style={grilla}>
+              {evolucion.datos.map(mes => {
+                const fin = mes.mes.slice(0, 7) === hasta.slice(0, 7) ? hasta : finMes(mes.mes);
+                return (
+                  <article key={mes.mes} style={{ background: "#fff7fb", padding: 14, borderRadius: 12, minWidth: 0 }}>
+                    <h4 style={{ color: "#cc2674", margin: "0 0 8px" }}>{nombreMes(mes.mes)}</h4>
+                    <p style={{ color: "#777", fontSize: 12 }}>{rango(mes.mes, fin)}{fin < finMes(mes.mes) ? " · Mes parcial" : ""}</p>
+                    <dl style={{ margin: 0 }}>
+                      {METRICAS.filter(m => ["facturacion", "gastos_totales", "ganancia", "atenciones", "ticket_promedio"].includes(m.campo)).map(m => (
+                        <div key={m.campo} style={{ marginTop: 10 }}>
+                          <dt style={{ color: "#777", fontSize: 12 }}>{m.titulo}</dt>
+                          <dd style={{ margin: "3px 0 0", fontWeight: 700, overflowWrap: "anywhere" }}>{valorMetrica(mes[m.campo], m.tipo)}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </article>
                 );
               })}
-            </div>
-          )}
-        </section>
+            </div>}
+          </section>
+
+          <section style={tarjeta} aria-label="Rendimiento por servicio">
+            <h3 style={{ color: "#cc2674", marginTop: 0 }}>💅 Servicios</h3>
+            <Estado estado={servicios} reintentar={() => setIntento(i => i + 1)} />
+            {servicios.datos?.length === 0 && <p style={{ color: "#777" }}>No hay conceptos de atenciones completadas en este período.</p>}
+            {servicios.datos && <div style={grilla}>
+              {servicios.datos.map(servicio => (
+                <article key={servicio.servicio_id ?? "manual"} style={{ background: "#fff7fb", padding: 14, borderRadius: 12, minWidth: 0, overflowWrap: "anywhere" }}>
+                  <strong>{servicio.nombre}</strong>
+                  <p>{numero(servicio.cantidad)} conceptos{servicio.activo === false ? " · Servicio inactivo" : ""}</p>
+                  <p style={{ color: "#cc2674", fontWeight: 700 }}>Facturación registrada: ${dinero(servicio.facturacion)}</p>
+                  <p style={{ color: "#777", fontSize: 13 }}>{numero(servicio.porcentaje_facturacion)}% de la facturación registrada</p>
+                  <div aria-hidden="true" style={{ background: "#f0d9e8", borderRadius: 4, height: 6, overflow: "hidden" }}>
+                    <div style={{ background: "#cc2674", height: "100%", width: `${Math.min(100, Math.max(0, servicio.porcentaje_facturacion))}%` }} />
+                  </div>
+                </article>
+              ))}
+            </div>}
+          </section>
+        </>
       )}
     </div>
   );
+}
+
+function Estado({ estado, reintentar }) {
+  if (estado.cargando) return <p role="status" style={{ color: "#777" }}>Cargando…</p>;
+  if (estado.error) return <div role="alert" style={{ color: "#c62828" }}>
+    <p>{estado.error}</p><BotonPeriodo onClick={reintentar}>Reintentar</BotonPeriodo>
+  </div>;
+  return null;
+}
+
+function Comparacion({ metrica, datos }) {
+  const actual = datos[`${metrica.campo}_comparable_actual`];
+  const anterior = datos[`${metrica.campo}_anterior`];
+  const cambio = calcularVariacion(actual, anterior, metrica);
+  const signo = cambio.valor > 0 ? "+" : cambio.valor < 0 ? "−" : "";
+  const magnitud = cambio.unidad === "dinero" ? `$${numero(Math.abs(cambio.valor))}` : numero(Math.abs(cambio.valor));
+  const sufijo = ["pp", "%"].includes(cambio.unidad) ? ` ${cambio.unidad}` : "";
+  const lectura = cambio.favorable === null ? "Sin cambios" : cambio.favorable ? "Favorable" : "Desfavorable";
+  return <div style={{ marginTop: 12, borderTop: "1px solid #f0d9e8", paddingTop: 10, fontSize: 12 }}>
+    <div style={{ color: cambio.favorable === null ? "#777" : cambio.favorable ? "#087a5a" : "#b3261e", fontWeight: 700 }}>
+      {signo}{magnitud}{sufijo} · {lectura}
+    </div>
+    {cambio.sinBase && <div style={{ color: "#777", marginTop: 4 }}>Sin base comparable · diferencia absoluta</div>}
+    <div style={{ color: "#777", marginTop: 4 }}>Tramo actual: {valorMetrica(actual, metrica.tipo)} · Anterior: {valorMetrica(anterior, metrica.tipo)}</div>
+  </div>;
+}
+
+function valorMetrica(valor, tipo) {
+  return tipo === "dinero" ? `$${dinero(valor)}` : tipo === "porcentaje" ? `${numero(valor)}%` : numero(valor);
+}
+function fechaTexto(fecha) {
+  const [anio, mes, dia] = fecha.split("-");
+  return `${dia}/${mes}/${anio}`;
+}
+function rango(desde, hasta) { return `${fechaTexto(desde)} – ${fechaTexto(hasta)}`; }
+function nombreMes(fecha) {
+  return new Intl.DateTimeFormat("es-UY", { month: "long", year: "numeric", timeZone: "UTC" }).format(new Date(`${fecha}T12:00:00Z`));
+}
+function finMes(fecha) {
+  const fin = new Date(`${fecha}T12:00:00Z`);
+  fin.setUTCMonth(fin.getUTCMonth() + 1, 0);
+  return fin.toISOString().slice(0, 10);
 }
 
 function TarjetaMetrica({
@@ -523,16 +243,21 @@ function TarjetaMetrica({
   titulo,
   valor,
   detalle,
-  destacada = false
+  destacada = false,
+  principal = false,
+  children
 }) {
   return (
     <div
       style={{
-        background: destacada ? "#cc2674" : "#fff",
+        background: destacada ? "#fff7fb" : "#fff",
         border: destacada ? "1px solid #cc2674" : "1px solid #f0d9e8",
+        borderTop: principal ? "3px solid #cc2674" : "1px solid #f0d9e8",
         borderRadius: 16,
         padding: 18,
-        minHeight: 115
+        minWidth: 0,
+        overflowWrap: "anywhere",
+        minHeight: principal ? 125 : 105
       }}
     >
       <div
@@ -543,14 +268,14 @@ function TarjetaMetrica({
           marginBottom: 9
         }}
       >
-        <span>{icono}</span>
+        <span aria-hidden="true" style={{ fontSize: principal ? 21 : 18 }}>{icono}</span>
 
         <span
           style={{
             fontSize: 11,
             fontWeight: 800,
             textTransform: "uppercase",
-            color: destacada ? "#fff" : "#cc2674"
+            color: "#cc2674"
           }}
         >
           {titulo}
@@ -559,10 +284,10 @@ function TarjetaMetrica({
 
       <div
         style={{
-          fontSize: 28,
+          fontSize: destacada ? 32 : principal ? 28 : 24,
           lineHeight: 1,
           fontWeight: 900,
-          color: destacada ? "#fff" : "#2d1f27",
+          color: destacada ? "#cc2674" : "#2d1f27",
           marginBottom: 9
         }}
       >
@@ -572,11 +297,12 @@ function TarjetaMetrica({
       <div
         style={{
           fontSize: 11,
-          color: destacada ? "rgba(255,255,255,.8)" : "#999"
+          color: "#777"
         }}
       >
         {detalle}
       </div>
+      {children}
     </div>
   );
 }
@@ -621,7 +347,7 @@ function TarjetaSecundaria({ titulo, valor, detalle }) {
 function CampoFecha({ label, value, onChange }) {
   return (
     <div>
-      <label
+      <label htmlFor={`tamara-${label}`}
         style={{
           display: "block",
           fontSize: 11,
@@ -634,6 +360,7 @@ function CampoFecha({ label, value, onChange }) {
       </label>
 
       <input
+        id={`tamara-${label}`}
         type="date"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -676,14 +403,14 @@ function BotonPeriodo({ children, onClick }) {
 function dinero(valor) {
   return new Intl.NumberFormat("es-UY", {
     maximumFractionDigits: 0
-  }).format(Number(valor || 0));
+  }).format(valor);
 }
 
 function numero(valor) {
   return new Intl.NumberFormat("es-UY", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2
-  }).format(Number(valor || 0));
+  }).format(valor);
 }
 
 function fechaLocal(fecha) {
