@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "../supabaseClient";
 import SelectorCliente from "./SelectorCliente";
 import CampoTelefono from "./CampoTelefono";
@@ -38,6 +38,14 @@ export default function AgendaTamara() {
   const [detalles, setDetalles] = useState([]);
   const [cargandoDetalle, setCargandoDetalle] = useState(false);
   const [guardandoDetalle, setGuardandoDetalle] = useState(false);
+
+  const [edicionCita, setEdicionCita] = useState(null);
+  const [notaBorrador, setNotaBorrador] = useState("");
+  const [horarioBorrador, setHorarioBorrador] = useState({ fecha: "", hora: "" });
+  const [guardandoCita, setGuardandoCita] = useState(false);
+  const envioCita = useRef(false);
+  const [errorCita, setErrorCita] = useState("");
+  const [mensajeCita, setMensajeCita] = useState("");
 
   const [serviciosTamara, setServiciosTamara] = useState([]);
   const [cargandoServicios, setCargandoServicios] = useState(false);
@@ -216,6 +224,9 @@ export default function AgendaTamara() {
   // =========================
 
   async function abrirTurno(turno) {
+    setEdicionCita(null);
+    setErrorCita("");
+    setMensajeCita("");
     setTurnoAbierto(turno);
     cerrarFormulario();
     setNuevoConcepto({
@@ -228,6 +239,10 @@ export default function AgendaTamara() {
   }
 
   function cerrarTurno() {
+    if (envioCita.current) return;
+    setEdicionCita(null);
+    setErrorCita("");
+    setMensajeCita("");
     setTurnoAbierto(null);
     setDetalles([]);
     setNuevoConcepto({
@@ -235,6 +250,56 @@ export default function AgendaTamara() {
       concepto: "",
       importe: ""
     });
+  }
+
+  function iniciarEdicionCita(modo) {
+    setErrorCita("");
+    setMensajeCita("");
+    setNotaBorrador(turnoAbierto.notas || "");
+    setHorarioBorrador({ fecha: turnoAbierto.fecha, hora: turnoAbierto.hora });
+    setEdicionCita(modo);
+  }
+
+  async function guardarEdicionCita(e) {
+    e.preventDefault();
+    if (envioCita.current || !turnoAbierto ||
+        !["pendiente", "confirmado"].includes(turnoAbierto.estado)) return;
+    const esNota = edicionCita === "nota";
+    const horaComparable = (hora) => hora.length === 5 ? `${hora}:00` : hora;
+    if (!esNota && horarioBorrador.fecha === turnoAbierto.fecha &&
+        horaComparable(horarioBorrador.hora) === horaComparable(turnoAbierto.hora)) {
+      setEdicionCita(null);
+      setErrorCita("");
+      setMensajeCita("La fecha y hora no cambiaron.");
+      return;
+    }
+    envioCita.current = true;
+    setGuardandoCita(true);
+    setErrorCita("");
+    try {
+      const { data, error } = await supabase.rpc(
+        esNota ? "actualizar_nota_turno_tamara" : "reagendar_turno_tamara",
+        esNota
+          ? { p_turno_id: turnoAbierto.id, p_notas: notaBorrador.trim() || null }
+          : { p_turno_id: turnoAbierto.id, p_fecha: horarioBorrador.fecha, p_hora: horarioBorrador.hora }
+      );
+      if (error) throw error;
+      const actualizado = data?.[0];
+      if (!actualizado) throw new Error("No se recibió la cita actualizada. Volvé a abrirla para verificar.");
+      setTurnos((actuales) => actuales.map((turno) =>
+        turno.id === actualizado.id ? { ...turno, ...actualizado } : turno
+      ).sort((a, b) => `${a.fecha} ${a.hora}`.localeCompare(`${b.fecha} ${b.hora}`)));
+      setTurnoAbierto((actual) => actual?.id === actualizado.id
+        ? { ...actual, ...actualizado } : actual);
+      if (!esNota) setFechaSeleccionada(actualizado.fecha);
+      setEdicionCita(null);
+      setMensajeCita(esNota ? "Nota guardada." : "Cita reagendada. La agenda quedó en la nueva fecha.");
+    } catch (err) {
+      setErrorCita(err?.message || "No se pudieron guardar los cambios.");
+    } finally {
+      envioCita.current = false;
+      setGuardandoCita(false);
+    }
   }
 
   async function cargarServiciosTamara() {
@@ -485,6 +550,7 @@ export default function AgendaTamara() {
   // =========================
 
   if (turnoAbierto) {
+    const puedeEditarCita = ["pendiente", "confirmado"].includes(turnoAbierto.estado);
     const puedeEditar =
       turnoAbierto.estado !== "completado" &&
       turnoAbierto.estado !== "cancelado" &&
@@ -494,6 +560,7 @@ export default function AgendaTamara() {
       <div>
         <button
           onClick={cerrarTurno}
+          disabled={guardandoCita}
           style={{
             ...botonSecundario,
             marginBottom: 18
@@ -611,38 +678,56 @@ export default function AgendaTamara() {
             </BloqueResumen>
           </div>
 
-          {turnoAbierto.notas && (
-            <div
-              style={{
-                marginTop: 18,
-                background: "#fff8fc",
-                borderRadius: 12,
-                padding: 14
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "#b05080",
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  marginBottom: 5
-                }}
-              >
-                Notas
-              </div>
-
-              <div
-                style={{
-                  color: "#555",
-                  whiteSpace: "pre-wrap",
-                  lineHeight: 1.5
-                }}
-              >
-                {turnoAbierto.notas}
-              </div>
+          <div style={{ marginTop: 18, background: "#fff8fc", borderRadius: 12, padding: 14 }}>
+            <div style={{ color: "#b05080", fontWeight: 800, marginBottom: 8 }}>Notas</div>
+            <div style={{ color: "#555", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+              {turnoAbierto.notas || "Sin notas."}
             </div>
-          )}
+            {puedeEditarCita && !edicionCita && (
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 12 }}>
+                <button disabled={guardandoDetalle || Boolean(edicionCita)} style={botonSecundario} onClick={() => iniciarEdicionCita("nota")}>
+                  Editar nota
+                </button>
+                <button disabled={guardandoDetalle || Boolean(edicionCita)} style={botonSecundario} onClick={() => iniciarEdicionCita("horario")}>
+                  Reagendar
+                </button>
+              </div>
+            )}
+            {puedeEditarCita && edicionCita && (
+              <form onSubmit={guardarEdicionCita} style={{ marginTop: 14 }}>
+                {edicionCita === "nota" ? (
+                  <Campo label="Nota de la cita">
+                    <textarea aria-label="Nota de la cita" rows={4} value={notaBorrador}
+                      disabled={guardandoCita} onChange={(e) => setNotaBorrador(e.target.value)}
+                      style={{ ...inputStyle, resize: "vertical" }} />
+                  </Campo>
+                ) : (
+                  <>
+                    <p>Horario actual: {turnoAbierto.fecha} · {turnoAbierto.hora}</p>
+                    <Campo label="Nueva fecha">
+                      <input aria-label="Nueva fecha" type="date" required value={horarioBorrador.fecha}
+                        disabled={guardandoCita} style={inputStyle}
+                        onChange={(e) => setHorarioBorrador((actual) => ({ ...actual, fecha: e.target.value }))} />
+                    </Campo>
+                    <Campo label="Nueva hora">
+                      <input aria-label="Nueva hora" type="time" step="1" required value={horarioBorrador.hora}
+                        disabled={guardandoCita} style={inputStyle}
+                        onChange={(e) => setHorarioBorrador((actual) => ({ ...actual, hora: e.target.value }))} />
+                    </Campo>
+                  </>
+                )}
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  <button type="submit" disabled={guardandoCita} style={botonPrincipal}>
+                    {guardandoCita ? "Guardando…" : "Guardar"}
+                  </button>
+                  <button type="button" disabled={guardandoCita} style={botonSecundario}
+                    onClick={() => { setEdicionCita(null); setErrorCita(""); }}>Cancelar</button>
+                </div>
+              </form>
+            )}
+            {errorCita && <p role="alert" style={{ color: "#a33" }}>{errorCita}</p>}
+            {mensajeCita && <p role="status" style={{ color: "#59527e" }}>{mensajeCita}</p>}
+          </div>
         </div>
 
         {/* DETALLE DEL TRABAJO */}
@@ -857,7 +942,7 @@ export default function AgendaTamara() {
                   >
                     <button
                       type="submit"
-                      disabled={guardandoDetalle}
+                      disabled={guardandoDetalle || Boolean(edicionCita)}
                       style={{
                         ...botonPrincipal,
                         width: "100%",
@@ -963,7 +1048,7 @@ export default function AgendaTamara() {
                 {turnoAbierto.estado !==
                   "confirmado" && (
                   <button
-                    disabled={guardandoDetalle}
+                    disabled={guardandoDetalle || Boolean(edicionCita)}
                     onClick={() =>
                       cambiarEstado("confirmado")
                     }
@@ -974,7 +1059,7 @@ export default function AgendaTamara() {
                 )}
 
                 <button
-                  disabled={guardandoDetalle}
+                  disabled={guardandoDetalle || Boolean(edicionCita)}
                   onClick={() =>
                     cambiarEstado("ausente")
                   }
@@ -984,7 +1069,7 @@ export default function AgendaTamara() {
                 </button>
 
                 <button
-                  disabled={guardandoDetalle}
+                  disabled={guardandoDetalle || Boolean(edicionCita)}
                   onClick={() =>
                     cambiarEstado("cancelado")
                   }
@@ -996,7 +1081,7 @@ export default function AgendaTamara() {
 
               <button
                 disabled={
-                  guardandoDetalle ||
+                  guardandoDetalle || Boolean(edicionCita) ||
                   detalles.length === 0
                 }
                 onClick={() =>
@@ -1005,12 +1090,12 @@ export default function AgendaTamara() {
                 style={{
                   ...botonCompletar,
                   opacity:
-                    guardandoDetalle ||
+                    guardandoDetalle || Boolean(edicionCita) ||
                     detalles.length === 0
                       ? 0.5
                       : 1,
                   cursor:
-                    guardandoDetalle ||
+                    guardandoDetalle || Boolean(edicionCita) ||
                     detalles.length === 0
                       ? "not-allowed"
                       : "pointer"
